@@ -5,14 +5,6 @@ class System(object):
   safe2raw:
   ---------
   The indices array is essentially a map from "safe_indices" to "raw_indices". This array can never shrink in size and when an atom is removed from the system, the value at that atoms index becomes None (or zero...). In essence, each element in the indices array is persistent for the duration of the simulation. 
-
-  safe_index: 
-  ----------
-  A safe_index refers to an element in the indices array. As these elements can never be deleted (only reassigned), these indices should refer to the same "atom" for the lifetime of the system object. 
-
-  raw index:  
-  ----------
-  A raw_index refers to an element in almost all other arrays. After atom addition, deletion, or resorting, the value of these indices may no longer have meaning. 
   
   '''
   def __init__(self):
