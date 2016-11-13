@@ -1,4 +1,5 @@
 import numpy as np
+from Box import Box
 
 class System(object):
   ''' 
@@ -13,11 +14,13 @@ class System(object):
     '''
     self.natoms         = 0
     self.safe2raw       = np.array([0])
-    self.positions      = np.array([[0.123,0.456,0.789]],dtype=float)
+    self.positions      = np.array([[0.123,0.456,0.789]],dtype=np.float)
     self.types          = np.array([-1],dtype=np.int)
-    self.bonds          = list()
+    self.bonds          = np.array([0,0,0,0],dtype=np.int) #each bead can have up to four bonds, zero means no bond
     self.molecules      = list()
     self.next_index     = 1
+    self.box = Box()
+    self.computes = list()
   def reset_all(self):
     for mol in self.molecules:
       mol.reset()
@@ -38,17 +41,21 @@ class System(object):
     self.next_index = self.safe2raw[-1]+1
     self.natoms += natoms_new
 
-    if 'types' in kwargs:
-      self.types = np.append(self.types,kwargs['types'])
-
     if 'bonds' in kwargs:
       self.bonds = np.append(self.bonds,kwargs['bonds'])
 
     return new_indices
-  def add_molecule(self,molecule,**mol_kwargs):
-    molData = molecule.build(**mol_kwargs)
+  def add_molecule(self,molecule,build=True,**kwargs):
+    if build==True:
+      molData = molecule.build(**kwargs)
+    elif build==False:
+      molData = kwargs
     molecule.system = self
     molecule.indices = self.add_atoms(**molData)
     self.molecules.append(molecule)
+  def get_compute(self,name):
+    for k,v in self.computes.items():
+      if k==name:
+        return v
     
 

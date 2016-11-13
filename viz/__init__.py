@@ -1,73 +1,18 @@
 import vtk
-
-class MouseInteractorHighLightActor(vtk.vtkInteractorStyleTrackballCamera):
-  def __init__(self,parent=None):
-    self.AddObserver("LeftButtonPressEvent",self.leftButtonPressEvent)
-    self.LastPickedActor = None
-    self.LastPickedProperty = vtk.vtkProperty()
-  def leftButtonPressEvent(self,obj,event):
-    clickPos = self.GetInteractor().GetEventPosition()
- 
-    picker = vtk.vtkPropPicker()
-    picker.Pick(clickPos[0], clickPos[1], 0, self.GetDefaultRenderer())
- 
-    # get the new
-    self.NewPickedActor = picker.GetActor()
- 
-    # If something was selected
-    if self.NewPickedActor:
-      # If we picked something before, reset its property
-      if self.LastPickedActor:
-          self.LastPickedActor.GetProperty().DeepCopy(self.LastPickedProperty)
- 
- 
-      # Save the property of the picked actor so that we can
-      # restore it next time
-      self.LastPickedProperty.DeepCopy(self.NewPickedActor.GetProperty())
-      # Highlight the picked actor by changing its properties
-      self.NewPickedActor.GetProperty().SetColor(1.0, 0.0, 0.0)
-      self.NewPickedActor.GetProperty().SetDiffuse(1.0)
-      self.NewPickedActor.GetProperty().SetSpecular(0.0)
- 
-      # save the last picked actor
-      self.LastPickedActor = self.NewPickedActor
-    self.OnLeftButtonDown()
-    return
-
-class MouseInteractorHighLightActor2(vtk.vtkInteractorStyleTrackballCamera):
-  def __init__(self,ren=None,parent=None):
-    self.AddObserver("LeftButtonPressEvent",self.leftButtonPressEvent)
-    self.LastActorCopy = None
-    if ren is not None:
-      self.ren=ren
-  def leftButtonPressEvent(self,obj,event):
-    clickPos = self.GetInteractor().GetEventPosition()
- 
-    picker = vtk.vtkPropPicker()
-    picker.Pick(clickPos[0], clickPos[1], 0, self.GetDefaultRenderer())
- 
-    # get the new
-    self.NewPickedActor = picker.GetActor()
- 
-    # If something was selected
-    if self.NewPickedActor:
-      self.ActorCopy = vtk.vtkActor().Deepcopy(self.NewPickedActor)
-      if self.LastActorCopy:
-          self.LastActorCopy.Delete()
- 
-      # Highlight the picked actor by changing its properties
-      self.ActorCopy.GetProperty().SetRepresentationToWireFrame()
-      self.ActorCopy.GetProperty().SetColor(1.0, 0.0, 0.0)
-      self.ActorCopy.GetProperty().SetDiffuse(1.0)
-      self.ActorCopy.GetProperty().SetSpecular(0.0)
- 
-      # save the last picked actor
-      self.LastActorCopy = self.ActorCopy
-    self.OnLeftButtonDown()
-    return
-
+# import numpy as np
+import ipdb; ist = ipdb.set_trace
 
 class MolecularViewer(object):
+  colormap ={}
+  colormap[0] = (1.0,0.0,0.0)
+  colormap[1] = (0.0,0.5,0.0)
+  colormap[2] = (0.0,0.0,1.0)
+  colormap[3] = (1.0,1.0,0.0)
+  colormap[4] = (1.0,0.0,1.0)
+  colormap[5] = (0.0,1.0,1.0)
+  colormap[6] = (0.0,0.0,0.0)
+  colormap[7] = (1.0,1.0,1.0)
+  colormap = {key:(i*255,j*255,k*255) for key,(i,j,k) in colormap.items()}
   def __init__(self,L=None):
     # create a rendering window and renderer
     self.ren = vtk.vtkRenderer()
@@ -118,6 +63,46 @@ class MolecularViewer(object):
     actor = vtk.vtkActor()
     actor.SetMapper(mapper)
     actor.GetProperty().SetColor(*color)
+
+    # assign actor to the renderer
+    self.ren.AddActor(actor)
+
+    group = {}
+    group['actor'] = actor
+    group['mapper'] = mapper
+    group['glyph3D'] = glyph3D
+    group['polyData'] = polyData
+    group['points'] = points
+    self.groups.append(group)
+  def add_molecule(self,mol):
+    # create source
+    points = vtk.vtkPoints()
+    scalars= vtk.vtkUnsignedCharArray()
+    scalars.SetNumberOfComponents(3)
+    types = mol.types.compressed()
+    pos = mol.positions.compressed().reshape(-1,3)
+    for t,p in zip(types,pos):
+      points.InsertNextPoint(p)
+      scalars.InsertNextTuple3(*self.colormap[t])
+    polyData = vtk.vtkPolyData()
+    polyData.SetPoints(points)
+    polyData.GetPointData().SetScalars(scalars)
+
+    source = vtk.vtkSphereSource()
+    glyph3D = vtk.vtkGlyph3D()
+    glyph3D.SetColorModeToColorByScalar()
+    glyph3D.SetSourceConnection(source.GetOutputPort());
+    glyph3D.SetInputData(polyData);
+    glyph3D.ScalingOff();
+    glyph3D.Update();
+     
+    # mapper
+    mapper = vtk.vtkPolyDataMapper()
+    mapper.SetInputConnection(glyph3D.GetOutputPort())
+     
+    # actor
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
 
     # assign actor to the renderer
     self.ren.AddActor(actor)

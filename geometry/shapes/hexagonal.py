@@ -1,14 +1,12 @@
 from math import sqrt
 import numpy as np
 
-def line(length,diameter):
-  molData = {}
-  molData['positions'] = [[0.,0.,i*diameter] for i in range(length)]
-  molData['bonds'] = [[i,j] for i,j in zip(range(length-1),range(1,length))]
-  molData['angles'] = [[i,j,k] for i,j,k in zip(range(length-2),range(1,length-1),range(2,length))]
-  return molData
-
-def hexagonal_surface(nx,ny,nz,diameter,shift=True):
+def surface(nx,ny,nz,diameter,
+            shift=True,
+            topType=0,
+            middleType=1,
+            bottomType=2,
+            ):
   radius = diameter/2.0                    
   positions = []                           
   types = []
@@ -32,3 +30,21 @@ def hexagonal_surface(nx,ny,nz,diameter,shift=True):
   molData['positions'] = positions
   molData['types'] = types
   return molData
+
+def index2Position(i,j,k=0,r=0.5):
+  '''
+  i,j,k = x,y,z bead indices
+  r = surface bead radius
+  '''
+  x = (2*i+((j+k)%2))*r
+  y = sqrt(3)*(j+(k%2)/3.0)*r
+  return (x,y)
+
+def position2Index(x,y,k=0.0,r=0.5):
+  '''
+  x,y = bead position
+  r = surface bead radius
+  '''
+  j = int(float(y)/(sqrt(3)*r) - (k%2)/3.0)
+  i = int(0.5*(float(x)/r - ((j+k)%2)))
+  return (i,j)
