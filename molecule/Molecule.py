@@ -6,8 +6,13 @@ class Molecule(object):
     self.system = None
     self.positions = None
     self.types = None
+    self.bonds = None
     self.name = 'BaseMolecule'
     self.snapshot = None
+  def __repr__(self):
+    return "<{}>".format(self.name)
+  def __str__(self):
+    return "<{}>".format(self.name)
   def check_indices(self):
     if self.indices is None:
       raise ValueError('Molecule named \"{}\" has no indices!'.format(self.name))
@@ -24,6 +29,9 @@ class Molecule(object):
     self.positions._sharedmask = False
     self.types = np.ma.array(self.system.types,mask=mask[:,0])
     self.types._sharedmask = False
+    self.bonds = []
+    for  idex in rawIndices:
+      self.bonds.append(self.system.bonds[idex])
   def update_indices(self,mapping):
     raise NotImplementedError('This function needs to be implemented!')
   def build(self):
@@ -48,3 +56,8 @@ class Molecule(object):
       if not all(m):
         nd[:]=od
     self.snapshot = None
+  def append(self,indices):
+    self.indices.extend(indices)
+    self.indices = np.unique(self.indices)
+    self.reset()
+

@@ -1,5 +1,6 @@
 import numpy as np
 from Box import Box
+from ..molecule import DummyMolecule
 
 class System(object):
   ''' 
@@ -16,15 +17,17 @@ class System(object):
     self.safe2raw       = np.array([0])
     self.positions      = np.array([[0.123,0.456,0.789]],dtype=np.float)
     self.types          = np.array([-1],dtype=np.int)
-    self.bonds          = np.array([0,0,0,0],dtype=np.int) #each bead can have up to four bonds, zero means no bond
     self.molecules      = list()
+    self.molecule_map   = np.array([DummyMolecule()])
+    self.bonds          = [set()] #dummy atom has no bonds
+
     self.next_index     = 1
     self.box = Box()
     self.computes = list()
-  def reset_all(self):
+  def reset_all_molecules(self):
     for mol in self.molecules:
       mol.reset()
-  def add_atoms(self,**kwargs):
+  def _add_atoms(self,**kwargs):
     try:
       self.positions = np.array(np.append(self.positions,kwargs['positions'],axis=0))
     except KeyError:
@@ -40,10 +43,16 @@ class System(object):
     self.safe2raw  = np.append(self.safe2raw,new_indices)
     self.next_index = self.safe2raw[-1]+1
     self.natoms += natoms_new
+    self.bonds.extend([set() for i in range(natoms_new)])
+    self.molecule_map = np.append(self.molecule_map,[DummyMolecule() for i in range(natoms_new)])
 
     if 'bonds' in kwargs:
-      self.bonds = np.append(self.bonds,kwargs['bonds'])
-
+      for bondi,bondj in kwargs['bonds']:
+        mapped_i = new_indices[bondi]
+        mapped_j = new_indices[bondj]
+        self.bonds[mapped_i].add(mapped_j)
+        self.bonds[mapped_j].add(mapped_i)
+        
     return new_indices
   def add_molecule(self,molecule,build=True,**kwargs):
     if build==True:
@@ -51,7 +60,8 @@ class System(object):
     elif build==False:
       molData = kwargs
     molecule.system = self
-    molecule.indices = self.add_atoms(**molData)
+    molecule.indices = self._add_atoms(**molData)
+    self.molecule_map[molecule.indices] = molecule
     self.molecules.append(molecule)
   def get_compute(self,name):
     for k,v in self.computes.items():

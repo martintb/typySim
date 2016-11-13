@@ -18,11 +18,11 @@ def surface(nx,ny,nz,diameter,
         z = 2.0/3.0 * sqrt(6) * k * radius
         positions.append([x,y,z])
         if k==0:
-          types.append(0)
+          types.append(topType)
         elif k==(nz-1):
-          types.append(1)
+          types.append(bottomType)
         else:
-          types.append(2)
+          types.append(middleType)
   positions = np.array(positions)
   if shift:
     positions -= np.average(positions,axis=0)
