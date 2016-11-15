@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 class Molecule(object):
   def __init__(self):
@@ -9,6 +10,7 @@ class Molecule(object):
     self.bonds = None
     self.name = 'BaseMolecule'
     self.snapshot = None
+    self.logger = logging.getLogger(__name__)
   def __repr__(self):
     return "<{}>".format(self.name)
   def __str__(self):

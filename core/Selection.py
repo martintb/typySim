@@ -1,7 +1,10 @@
 import numpy as np
+import warnings
+import logging
 
 class Selection(object):
   def __init__(self,select_from=None,select_vals=None):
+    self.logger = logging.getLogger(__name__)
     if (select_from is not None) and (select_vals is not None):
       self.select(select_from,select_vals)
     else:
@@ -17,9 +20,12 @@ class Selection(object):
   def random_choice(self):
     if self.mask is None:
       raise ValueError('Selection object is not initialized!')
-    choice = np.random.choice(self.indices)
-    # OutData['val'] = self.select_from[choice]
-    # OutData['index'] = choice
+    try:
+      choice = np.random.choice(self.indices)
+    except ValueError:
+      error_str = '''Can't select from empty selection!
+      select_vals={}'''.format(self.select_vals)
+      raise ValueError(error_str)
     return choice
 
 
