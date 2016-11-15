@@ -3,35 +3,33 @@ from Box import Box
 from ..molecule import DummyMolecule
 
 class System(object):
-  ''' 
-  safe2raw:
-  ---------
-  The indices array is essentially a map from "safe_indices" to "raw_indices". This array can never shrink in size and when an atom is removed from the system, the value at that atoms index becomes None (or zero...). In essence, each element in the indices array is persistent for the duration of the simulation. 
-  
-  '''
   def __init__(self):
     '''
     The first bead is a dummy atom that is used as a placeholder for removed beads
     '''
+    self.DummyMolecule = DummyMolecule() #sentinel DummyMolecule
     self.natoms         = 0
-    self.safe2raw       = np.array([0])
-    self.positions      = np.array([[0.123,0.456,0.789]],dtype=np.float)
-    self.types          = np.array([-1],dtype=np.int)
+    self.positions      = None
+    self.types          = np.array([],dtype=np.int)
     self.molecules      = list()
-    self.molecule_map   = np.array([DummyMolecule()])
-    self.bonds          = [set()] #dummy atom has no bonds
+    self.molecule_map   = np.array([])
+    self.bonds          = [] #dummy atom has no bonds
 
-    self.next_index     = 1
-    self.box = Box()
+    self.box = Box(system=self)
     self.computes = list()
+    self.engine = None
   def reset_all_molecules(self):
     for mol in self.molecules:
       mol.reset()
-  def _add_atoms(self,**kwargs):
+  def add_atoms(self,**kwargs):
     try:
-      self.positions = np.array(np.append(self.positions,kwargs['positions'],axis=0))
+      if self.positions is None:
+        self.positions = np.array(kwargs['positions'],dtype=float)
+      else:
+        self.positions = np.array(np.append(self.positions,kwargs['positions'],axis=0))
     except KeyError:
       raise ValueError('System.add_atoms called without positions kwarg!')
+
 
     try:
       self.types = np.array(np.append(self.types,kwargs['types']))
@@ -39,33 +37,38 @@ class System(object):
       raise ValueError('System.add_atoms called without types kwarg!')
 
     natoms_new = len(kwargs['positions'])
-    new_indices = range(self.next_index,self.next_index+natoms_new)
-    self.safe2raw  = np.append(self.safe2raw,new_indices)
-    self.next_index = self.safe2raw[-1]+1
-    self.natoms += natoms_new
+    new_indices = range(self.natoms,self.natoms+natoms_new)
     self.bonds.extend([set() for i in range(natoms_new)])
-    self.molecule_map = np.append(self.molecule_map,[DummyMolecule() for i in range(natoms_new)])
+    self.molecule_map = np.append(self.molecule_map,[self.DummyMolecule for i in range(natoms_new)])
 
     if 'bonds' in kwargs:
       for bondi,bondj in kwargs['bonds']:
-        mapped_i = new_indices[bondi]
-        mapped_j = new_indices[bondj]
-        self.bonds[mapped_i].add(mapped_j)
-        self.bonds[mapped_j].add(mapped_i)
+        # if bondi>=0:
+        #   bondi+=self.natoms
+        # if bondj>=0:
+        #   bondj+=self.natoms
+        # bondi = abs(bondi) #handle the negative bonds
+        # bondj = abs(bondj) #handle the negative bonds
+        self.bonds[bondi].add(bondj)
+        self.bonds[bondj].add(bondi)
         
-    return new_indices
-  def add_molecule(self,molecule,build=True,**kwargs):
-    if build==True:
-      molData = molecule.build(**kwargs)
-    elif build==False:
-      molData = kwargs
+    self.natoms += natoms_new
+    return set(new_indices)
+  def add_molecule(self,molecule,molData=None):
+    if molData is not None:
+      molecule.indices = self.add_atoms(**molData)
     molecule.system = self
-    molecule.indices = self._add_atoms(**molData)
-    self.molecule_map[molecule.indices] = molecule
+    self.molecule_map[list(molecule.indices)] = molecule
     self.molecules.append(molecule)
+    self.reset_all_molecules()
   def get_compute(self,name):
     for k,v in self.computes.items():
       if k==name:
         return v
+  def add_engine(self,engine):
+    if self.engine is not None:
+      raise Warning('Replacing currently loaded engine: {}'.format(self.engine.name))
+    engine.system = self
+    self.engine = engine
     
 

@@ -8,7 +8,7 @@ class MonteCarlo(object):
     self.rates = {}
     self.rates['total_attempted'] = 0
     self.rates['total_accepted'] = 0
-  def add_move(self):
+  def add_move(self,move):
     move.engine = self
     move.system = self.system
     self.moveList.append(move)
@@ -22,3 +22,7 @@ class MonteCarlo(object):
       if success:
         self.rates['total_accepted'] += 1
         self.rates[move.name] += 1
+    accepted = self.rates['total_accepted']
+    attempted = self.rates['total_attempted']
+    rate = accepted/float(attempted)
+    print 'Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate)

@@ -3,6 +3,7 @@ import numpy as np
 
 def normalize(v,axis=None):
   v /= np.linalg.norm(v,axis=axis)
+  return v
 
 def rotation_matrix(v1,v2):
   R = np.empty((3,3))

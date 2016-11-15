@@ -22,15 +22,14 @@ class Molecule(object):
   def reset(self):
     self.check_system()
     self.check_indices()
-    rawIndices = self.system.safe2raw[self.indices]
     mask = np.ones_like(self.system.positions,dtype=bool)
-    mask[rawIndices] = False
+    mask[list(self.indices)] = False
     self.positions = np.ma.array(self.system.positions,mask=mask)
     self.positions._sharedmask = False
     self.types = np.ma.array(self.system.types,mask=mask[:,0])
     self.types._sharedmask = False
     self.bonds = []
-    for  idex in rawIndices:
+    for  idex in self.indices:
       self.bonds.append(self.system.bonds[idex])
   def update_indices(self,mapping):
     raise NotImplementedError('This function needs to be implemented!')
@@ -56,8 +55,24 @@ class Molecule(object):
       if not all(m):
         nd[:]=od
     self.snapshot = None
-  def append(self,indices):
-    self.indices.extend(indices)
-    self.indices = np.unique(self.indices)
+  def attach(self,index):
+    try:
+      self.indices.add(index)
+    except TypeError:
+      raise TypeError('==> molecule.attach can only remove one index at time!')
+    oldMolecule = self.system.molecule_map[index]
+    self.system.molecule_map[index] = self
+    if oldMolecule is not self.system.DummyMolecule:
+      oldMolecule.detach(index)
     self.reset()
+  def detach(self,index):
+    try:
+      self.indices.remove(index)
+    except TypeError:
+      raise TypeError('==> molecule.detach can only remove one index at time!')
+    if self.system.molecule_map[index] is self:
+      self.system.molecule_map[index] = self.system.DummyMolecule
+    if self is not self.system.DummyMolecule:
+      self.reset()
+
 

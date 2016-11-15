@@ -5,4 +5,4 @@ class MonteCarloMove(object):
     self.system = None
     self.name = 'BaseMonteCarloMove'
   def attempt(self):
-    raise NotImplementedError('{} has not implemented \'attempt\' method!'.format(self.name)
+    raise NotImplementedError('{} has not implemented \'attempt\' method!'.format(self.name))
