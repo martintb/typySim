@@ -158,6 +158,7 @@ cdef class CellList:
     outdict['top'] = np.array(self.top)
     outdict['neigh'] = np.array(self.neigh)
     outdict['cell_neighs'] = np.array(self.cell_neighs)
+    outdict['bead_cells'] = np.array(self.bead_cells)
     outdict['nx'] = self.nx
     outdict['ny'] = self.ny
     outdict['nz'] = self.nz
@@ -282,7 +283,7 @@ cdef class CellList:
 
     # add new location to list 
     self.insert_bead(beadNo,x,y,z)
-  cdef long pos2idex(self,double x, double dx, double bx):
+  cpdef long pos2idex(self,double x, double dx, double bx):
     '''
     Convert coordinate to cell index
     '''
@@ -294,7 +295,7 @@ cdef class CellList:
       shift =0
     idex = (long) (x+shift)/(dx)
     return idex
-  cdef long idex2cell(self,long ix,long iy,long iz):
+  cpdef long idex2cell(self,long ix,long iy,long iz):
     '''
     Convert cell index triplet to cell number
     '''
@@ -303,7 +304,7 @@ cdef class CellList:
     cdef long n2d = self.ncells_2d
     cellno = (long) (ix + iy*n1d + iz*n2d)
     return cellno
-  cdef void cell2idex(self,long cell_number,long[:] ixyz):
+  cpdef void cell2idex(self,long cell_number,long[:] ixyz):
     '''
     Convert cell number to cell index triplet
     '''
@@ -312,7 +313,7 @@ cdef class CellList:
     ixyz[2] = (long) (cell_number/n2d)
     ixyz[1] = (long) (cell_number- ixyz[2]*n2d)/n1d
     ixyz[0] = (long) (cell_number - ixyz[1]*n1d -ixyz[2]*n2d)
-  cdef void get_cell_neighbors(self,long cell_number,long[:] cell_neighs):
+  cpdef void get_cell_neighbors(self,long cell_number,long[:] cell_neighs):
     '''
     Get the cell numbers of the neighbors of a particular cell
     '''
