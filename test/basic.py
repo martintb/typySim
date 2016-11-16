@@ -5,7 +5,7 @@ import logging,sys
 logging.basicConfig(stream=sys.stdout,level=logging.DEBUG)
 
 
-sys = typySim.core.System()
+sys = typySim.core.System(cell_grid=(5,2,10))
 sys.box.L=10
 sys.box.lx=25
 sys.box.lz=50
@@ -33,9 +33,6 @@ sys.add_molecule(hexp1,molData = molData)
 sys.lx = boxData['lx']
 sys.ly = boxData['ly']
 
-
-test = {}
-test[hexp1] = 'blarg'
 
 length = 8
 ChainSeg = typySim.molecule.ChainSegment()

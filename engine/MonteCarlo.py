@@ -17,6 +17,8 @@ class MonteCarlo(object):
     if not (move.name in self.rates):
       self.rates[move.name] = 0
   def run(self,num_attempts,log_rate = 5):
+    if self.system.box.cellList is not None:
+      self.system.box.cellList.build_nlist(self.system.positions,central_origin=True)
     for i in range(num_attempts):
       move = random.choice(self.moveList)
       success = move.attempt()

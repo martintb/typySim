@@ -1,5 +1,5 @@
 import vtk
-# import numpy as np
+import numpy as np
 # import ipdb; ist = ipdb.set_trace
 
 class MolecularViewer(object):
@@ -159,3 +159,33 @@ class MolecularViewer(object):
 
     self.iren.Initialize()
     self.iren.Start()
+if __name__=='__main__':
+  def create_dummy_positions(cell_grid,box,central_origin):
+    grid_size = [b/float(d) for b,d in zip(box,cell_grid)]
+    dx = cell_grid[0]
+    dy = cell_grid[1]
+    dz = cell_grid[2]
+    bx = box[0]
+    by = box[1]
+    bz = box[2]
+    gx = bx/float(dx)
+    gy = by/float(dy)
+    gz = bz/float(dz)
+    position_list = []
+    for ix in range(dx):
+      for iy in range(dy):
+        for iz in range(dz):
+          position_list.append([ix*gx+gx/2.0,iy*gy+gy/2.0,iz*gz+gz/2.0])
+    position_array = np.array(position_list)
+    if central_origin:
+      position_array[:,0] -= (bx/2.0)
+      position_array[:,1] -= (by/2.0)
+      position_array[:,2] -= (bz/2.0)
+    return position_array
+  box = [50,50,50]
+  cell_grid = [10,10,10]
+  central_origin = True
+  pos = create_dummy_positions(cell_grid,box,central_origin)
+  viz = MolecularViewer(L=50)
+  viz.add_beads(pos)
+  viz.show()

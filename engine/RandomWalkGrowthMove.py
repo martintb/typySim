@@ -28,15 +28,27 @@ class RandomWalkGrowthMove(MonteCarloMove):
     # generate random position
     newVec = linalg.normalize(np.random.random(3) - 0.5)
     new_position = newVec + growth_position
+    new_index = self.system.nbeads
 
     # check for overlaps
-    dr = self.system.positions - new_position
-    dist = self.system.box.wrap_distance(dr)
+    if self.system.box.cellList is not None:
+      pos = self.system.box.wrap_position(new_position)
+      self.system.box.cellList.insert_bead(new_index,
+                                           pos[0],
+                                           pos[1],
+                                           pos[2])
+      positions = np.append(self.system.positions,[pos],axis=0)
+      dist,idex = self.system.box.cellList.calc_neighbor_dists(new_index,positions)
+    else:
+      dr = self.system.positions - new_position
+      dist = self.system.box.wrap_distance(dr)
     dist_mask = (dist<1.0)
     if np.any(dist_mask):
+      self.system.box.cellList.remove_bead(new_index)
       return False #reject!
     else:
-      self.logger.debug('''Accepted!
+      self.logger.debug('--> Accepted!')
+      self.logger.log(9,'''
       growth_type:      {}
       growth_position:  {}
       new_position:     {}'''.format(growth_type,growth_position,new_position))
@@ -44,7 +56,6 @@ class RandomWalkGrowthMove(MonteCarloMove):
       molData = {}
       molData['positions'] = [self.system.box.wrap_position(new_position)]
       molData['types'] = self.chain_end_type
-      new_index = self.system.nbeads
 
       if (growth_type == self.chain_end_type): # attaching bead to end of chain
         #add new bead to system
