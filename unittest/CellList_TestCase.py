@@ -121,25 +121,25 @@ class CellList_TestCase(unittest.TestCase):
     box = [50,50,50]
     cell_grid = [10,10,10]
     central_origin = True
-    self.base_box_test(box,cell_grid,central_origin)
+    self.general_box_test(box,cell_grid,central_origin)
   def test_general_N10x10x10_L50x50x50_corner_origin(self):
     # Define the box parameters
     box = [50,50,50]
     cell_grid = [10,10,10]
     central_origin = False
-    self.base_box_test(box,cell_grid,central_origin)
+    self.general_box_test(box,cell_grid,central_origin)
   def test_general_N10x20x25_L32x100x75_central_origin(self):
     # Define the box parameters
     box = [32,100,75]
     cell_grid = [10,20,25]
     central_origin = True
-    self.base_box_test(box,cell_grid,central_origin)
+    self.general_box_test(box,cell_grid,central_origin)
   def test_general_N10x20x25_L32x100x75_corner_origin(self):
     # Define the box parameters
     box = [32,100,75]
     cell_grid = [10,20,25]
     central_origin = False
-    self.base_box_test(box,cell_grid,central_origin)
+    self.general_box_test(box,cell_grid,central_origin)
   def test_add_remove_bead_central_origin(self):
     # Define the box parameters
     box = [50,50,50]
