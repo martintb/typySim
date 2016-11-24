@@ -1,1 +1,1 @@
-from SystemViewer import SystemViewer
+from SystemViewer import *
