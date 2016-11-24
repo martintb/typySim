@@ -181,7 +181,7 @@ cdef class CellList:
     self.dx = self.bx/self.nx
     self.dy = self.by/self.ny
     self.dz = self.bz/self.nz
-  def build_nlist(self,double[:,:] pos,bint central_origin):
+  def build_nlist(self,double[:] x, double[:] y, double[:] z,bint central_origin):
     '''
     Build a new neighbor_list from scratch
 
@@ -190,16 +190,13 @@ cdef class CellList:
     self.logger.debug('==> Creating new nlist from scratch')
     self.central_origin=central_origin
     # self.set_box_size(box[0],box[1],box[2])
-    self.reset_nlist(pos.shape[0])
-    cdef double x,y,z
-    cdef long ix,iy,iz,cellNo,
-    cdef long oldTopBeadNo,newTopBeadNo
-    cdef long thisNeighNo,nextNeighNo
+    self.reset_nlist(x.shape[0])
+    cdef double xx,yy,zz
     for beadNo in range(self.nbeads):
-      x = pos[beadNo,0]
-      y = pos[beadNo,1]
-      z = pos[beadNo,2]
-      self.insert_bead(beadNo,x,y,z)
+      xx = x[beadNo]
+      yy = y[beadNo]
+      zz = z[beadNo]
+      self.insert_bead(beadNo,xx,yy,zz)
   cpdef void insert_bead(self,long beadNo, double x,double y,double z):
     '''
     Insert bead into neighbor list. If neccessary, resizes the nlists.
@@ -339,15 +336,14 @@ cdef class CellList:
         neighs.append(thisNeighNo)
         thisNeighNo = self.neigh[thisNeighNo]
     return neighs
-  def get_neighbors_by_pos(self,double[:] pos):
+  def get_neighbors_by_pos(self,double x, double y, double z):
     '''
     Given a position, returns all bead indices of all neighbors
     '''
-    cdef double x,y,z
     cdef long ix,iy,iz,cellNo
-    ix = self.pos2idex(pos[0],self.dx,self.bx)
-    iy = self.pos2idex(pos[1],self.dy,self.by)
-    iz = self.pos2idex(pos[2],self.dz,self.bz)
+    ix = self.pos2idex(x,self.dx,self.bx)
+    iy = self.pos2idex(y,self.dy,self.by)
+    iz = self.pos2idex(z,self.dz,self.bz)
     cellNo = self.idex2cell(ix,iy,iz)
     neighs = self.get_neighbors_by_cell(cellNo)
     return neighs
@@ -358,7 +354,7 @@ cdef class CellList:
     cdef long cellNo = self.bead_cells[bead_index]
     neighs = self.get_neighbors_by_cell(cellNo)
     return neighs
-  def calc_neighbor_dists(self,long bead_index,double[:,:] pos):
+  def calc_neighbor_dists(self,long bead_index,double[:] x,double[:] y,double[:] z):
     '''
     Given a bead index, returns all bead indices of all neighbors
     '''
@@ -375,9 +371,9 @@ cdef class CellList:
     cdef double By = self.by
     cdef double Bz = self.bz
     cdef double rsq,r
-    x1 = pos[bead_index,0]
-    y1 = pos[bead_index,1]
-    z1 = pos[bead_index,2]
+    x1 = x[bead_index]
+    y1 = y[bead_index]
+    z1 = z[bead_index]
     dists = []
     indexes = []
     for i in range(27):
@@ -385,9 +381,9 @@ cdef class CellList:
       thisNeighNo = self.top[currCell]
       while thisNeighNo!=-1:
         if thisNeighNo!=bead_index:
-          dx = c_fabs (x1 - pos[thisNeighNo,0])
-          dy = c_fabs (y1 - pos[thisNeighNo,1])
-          dz = c_fabs (z1 - pos[thisNeighNo,2])
+          dx = c_fabs (x1 - x[thisNeighNo])
+          dy = c_fabs (y1 - y[thisNeighNo])
+          dz = c_fabs (z1 - z[thisNeighNo])
     
           if dx>Bx2:
             dx=dx-Bx

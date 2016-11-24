@@ -28,6 +28,9 @@ class CellList_TestCase(unittest.TestCase):
       self.position_array[:,0] -= (bx/2.0)
       self.position_array[:,1] -= (by/2.0)
       self.position_array[:,2] -= (bz/2.0)
+    self.x = self.position_array[:,0]
+    self.y = self.position_array[:,1]
+    self.z = self.position_array[:,2]
     return self.position_array.shape[0]
   def generate_random_position(self,box,central_origin):
     x = box[0]*np.random.random(1)
@@ -48,14 +51,14 @@ class CellList_TestCase(unittest.TestCase):
     #######################
     # NLIST BASE BEHAVIOR #
     #######################
-    self.cellList.build_nlist(self.position_array,central_origin)
+    self.cellList.build_nlist(self.x,self.y,self.z,central_origin)
 
     #Asserts
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[0])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[0],self.y[0],self.z[0])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[(self.position_array.shape[0]/2)])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[(self.x.shape[0]/2)],self.y[(self.y.shape[0]/2)],self.z[(self.z.shape[0]/2)])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[-1])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[-1],self.y[-1],self.z[-1])
     self.assertEqual(len(neighs),27)
     nlist = self.cellList.get_nlist()
     self.assertEqual(nlist['nbeads'],nbeads)
@@ -79,11 +82,11 @@ class CellList_TestCase(unittest.TestCase):
       self.cellList.remove_bead(nbeads+i)
 
     #Lots of Asserts
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[0])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[0],self.y[0],self.z[0])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[self.position_array.shape[0]/2])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[(self.x.shape[0]/2)],self.y[(self.y.shape[0]/2)],self.z[(self.z.shape[0]/2)])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[-1])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[-1],self.y[-1],self.z[-1])
     self.assertEqual(len(neighs),27)
     nlist = self.cellList.get_nlist()
     self.assertEqual(nlist['nbeads'],nbeads+100)
@@ -98,14 +101,14 @@ class CellList_TestCase(unittest.TestCase):
     ###################
     # NLIST RESETTING #
     ###################
-    self.cellList.build_nlist(self.position_array,central_origin)
+    self.cellList.build_nlist(self.x,self.y,self.z,central_origin)
 
     # So many Asserts...
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[0])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[0],self.y[0],self.z[0])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[self.position_array.shape[0]/2])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[(self.x.shape[0]/2)],self.y[(self.y.shape[0]/2)],self.z[(self.z.shape[0]/2)])
     self.assertEqual(len(neighs),27)
-    neighs = self.cellList.get_neighbors_by_pos(self.position_array[-1])
+    neighs = self.cellList.get_neighbors_by_pos(self.x[-1],self.y[-1],self.z[-1])
     self.assertEqual(len(neighs),27)
     nlist = self.cellList.get_nlist()
     self.assertEqual(nlist['nbeads'],nbeads)
@@ -149,11 +152,11 @@ class CellList_TestCase(unittest.TestCase):
     # Set up the cell list and positions array for this box
     self.create_cell_list(cell_grid=cell_grid,box=box)
     nbeads = self.create_dummy_positions(cell_grid=cell_grid,box=box,central_origin=central_origin)
-    self.cellList.build_nlist(self.position_array,central_origin)
+    self.cellList.build_nlist(self.x,self.y,self.z,central_origin)
 
     # Basline Assert
-    center_pos = np.array([0,0,0],dtype=np.double)
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    cx=0;cy=0;cz=0
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),27)
 
     #This bead should be near the center of the box
@@ -161,7 +164,7 @@ class CellList_TestCase(unittest.TestCase):
 
     #Let us try adding this bead to the center
     self.cellList.insert_bead(nbeads,x,y,z)
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),28)
 
     #Let us check that the bead was placed where we expected
@@ -173,7 +176,7 @@ class CellList_TestCase(unittest.TestCase):
 
     #Let us try removing the bead!
     self.cellList.remove_bead(nbeads)# this nbeads wasn't updated by the insert
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),27)
   def test_add_remove_bead_corner_origin(self):
     # Define the box parameters
@@ -184,11 +187,11 @@ class CellList_TestCase(unittest.TestCase):
     # Set up the cell list and positions array for this box
     self.create_cell_list(cell_grid=cell_grid,box=box)
     nbeads = self.create_dummy_positions(cell_grid=cell_grid,box=box,central_origin=central_origin)
-    self.cellList.build_nlist(self.position_array,central_origin)
+    self.cellList.build_nlist(self.x,self.y,self.z,central_origin)
 
     # Basline Assert
-    center_pos = np.array([0,0,0],dtype=np.double)
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    cx = 0; cy = 0; cz = 0
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),27)
 
     #This bead should be near the corner of the box
@@ -196,7 +199,7 @@ class CellList_TestCase(unittest.TestCase):
 
     #Let us try adding this bead to the center
     self.cellList.insert_bead(nbeads,x,y,z)
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),28)
 
     #Let us check that the bead was placed where we expected
@@ -206,7 +209,7 @@ class CellList_TestCase(unittest.TestCase):
 
     #Let us try removing the bead!
     self.cellList.remove_bead(nbeads)# this nbeads wasn't updated by the insert
-    neighs = self.cellList.get_neighbors_by_pos(center_pos)
+    neighs = self.cellList.get_neighbors_by_pos(cx,cy,cz)
     self.assertEqual(len(neighs),27)
 
 

@@ -57,4 +57,4 @@ class MonteCarlo(object):
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
     rate = accepted/float(attempted)
-    self.logger.info(print 'Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
+    self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
