@@ -154,7 +154,7 @@ class System(object):
     #This way the user can immediately act on these added beads e.g. set their molecule
     new_indices = range(self.nbeads,self.nbeads+new_nbeads)
     self.nbeads += new_nbeads
-    return set(new_indices)
+    return new_indices
   def remove_beads(self, indices):
     '''
     Primary method for removing beads to the :class:`System`. Note that this method
@@ -259,7 +259,7 @@ class System(object):
     if kwargs:
       molecule.indices = self.add_beads(**kwargs)
     molecule.system = self
-    self.molecule_map[list(molecule.indices)] = molecule
+    self.molecule_map[molecule.indices] = molecule
     self.molecules.append(molecule)
 
     # Since new beads have been (possibly) added, it's necessary 
@@ -302,7 +302,8 @@ class System(object):
     removed_mol = self.molecules.pop(index)
 
     if remove_beads is True:
-      index_mapping = self.remove_beads(list(removed_mol.indices))
+      index_mapping = self.remove_beads(removed_mol.indices)
       self.reset_all_molecules(index_mapping['old2new'])
+    return removed_mol
     
 
