@@ -17,14 +17,16 @@ class Molecule(object):
   to manipulate the subset of beads. 
 
   .. Note:
-    All molecules which subclass :class:`Molecule` should call super(self,`Class`).__init__()
-    with `Class` replaced by the subclass.
+    All subclasses should call super(`Class`,self).__init__() in their
+    implementations of __init__(self). 
 
 
   Attributes
   ----------
-  indices : int set
-      List of indices in the system object that this molecule references.
+  indices : int list
+      List of indices in the system object that this molecule references. Note
+      that the the underlying data structure is a set and the list interface is
+      served via a python property construct with defined setter. 
 
   system : object
       Reference to the system this molecule is contained in

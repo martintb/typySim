@@ -31,14 +31,11 @@ class RandomWalkGrowthMove(MonteCarloMove):
     new_index = self.system.nbeads
 
     # check for overlaps
-    if self.system.box.cellList is not None:
+    if self.system.neighbor_list is not None:
       pos = self.system.box.wrap_position(new_position)
-      self.system.box.cellList.insert_bead(new_index,
-                                           pos[0],
-                                           pos[1],
-                                           pos[2])
+      self.system.neighbor_list.insert_bead(new_index, pos[0], pos[1], pos[2])
       positions = np.append(self.system.positions,[pos],axis=0)
-      dist,idex = self.system.box.cellList.calc_neighbor_dists(new_index,positions)
+      dist,idex = self.system.neighbor_list.calc_neighbor_dists(new_index,positions)
     else:
       dr = self.system.positions - new_position
       dist = self.system.box.wrap_distance(dr)
@@ -53,8 +50,11 @@ class RandomWalkGrowthMove(MonteCarloMove):
       growth_position:  {}
       new_position:     {}'''.format(growth_type,growth_position,new_position))
 
+      pos = self.system.box.wrap_position(new_position)
       molData = {}
-      molData['positions'] = [self.system.box.wrap_position(new_position)]
+      molData['x'] = pos[:,0]
+      molData['y'] = pos[:,1]
+      molData['z'] = pos[:,2]
       molData['types'] = self.chain_end_type
 
       if (growth_type == self.chain_end_type): # attaching bead to end of chain
@@ -65,14 +65,14 @@ class RandomWalkGrowthMove(MonteCarloMove):
         self.system.types[growth_index] = self.chain_middle_type
 
         #add new index to chain molecule
-        self.system.molecule_map[growth_index].attach(self.system.nbeads-1)
+        self.system.molecule_map[growth_index].add_indices([new_index])
       else: # attaching bead to surface
 
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
 
         #add new molecule to system
-        self.system.add_molecule(NewChainSegment,molData=molData)
+        self.system.add_molecule(NewChainSegment,**molData)
 
       #bonds between the surface/chain and new bead need to be added
       self.system.add_bond(new_index,growth_index)

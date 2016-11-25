@@ -30,7 +30,7 @@ class Box(object):
       is not specified, no neighborlist is created. 
 
   '''
-  def __init__(self,L=-1,system=None,cell_grid=None):
+  def __init__(self,L=-1,cell_grid=None):
     self.system = system
     self._lx=L
     self._ly=L
@@ -45,9 +45,9 @@ class Box(object):
     self.zlo =-L/2.0
     self.zhi = L/2.0
     if cell_grid is not None:
-      self.cellList = CellList(*cell_grid)
+      self.neighbor_list = CellList(*cell_grid)
     else:
-      self.cellList = None
+      self.neighbor_list = None
   def wrap_all_positions(self):
     ''' Convenience function to wrapping all system positions back into the box. '''
     self.system.positions = self.wrap_position(self.system.positions)
@@ -78,8 +78,8 @@ class Box(object):
     setattr(self,'_half_l{}'.format(dim),length/2.0)
     setattr(self,'{}lo'.format(dim),-length/2.0)
     setattr(self,'{}hi'.format(dim), length/2.0)
-    if self.cellList is not None:
-      self.cellList.set_box_size(self._lx,self._ly,self._lz)
+    if self.neighbor_list is not None:
+      self.neighbor_list.set_box_size(self._lx,self._ly,self._lz)
   def __str__(self):
     xyz = ( '{}:{:5.4f} '*3).format('x',self.lx,'y',self.ly,'z',self.lz)
     return '< ' + xyz + '>'

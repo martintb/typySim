@@ -68,6 +68,7 @@ class System(object):
     # without having load_box and load_engine methods. 
     self._box = None 
     self._engine = None
+    self.neighbor_list = None
 
     # sentinel dummy molecule object. A reference to this molecule will be placed 
     # in the molecules list when that bead is not "owned" by a molecule
@@ -88,6 +89,8 @@ class System(object):
   def box(self,box):
     box.system = self
     self._box = box
+    if self._box.neighbor_list is not None:
+      self.neighbor_list = self._box.neighbor_list
   def reset_all_molecules(self,index_mapping=None):
     ''' Calls the :func:`reset` function on all molecules in 
         :attr:`self.molecules` so that their position/type masked arrays can be updated. 
