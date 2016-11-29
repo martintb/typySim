@@ -8,11 +8,17 @@ To compile the cython plugin, run this command:
 python compile.py build_ext --inplace
 '''
 ext_modules = [
-                Extension('*', ['typySim/cy/*.pyx'],
+                Extension('*', 
+                        [ 'typySim/core/cy/*.pyx' ],
 												include_dirs=[np.get_include()],
  												extra_compile_args=['-fopenmp'],
  		     								extra_link_args=['-fopenmp']),
-												]
+                Extension('*', 
+                        [ 'typySim/compute/cy/*.pyx' ],
+												include_dirs=[np.get_include()],
+ 												extra_compile_args=['-fopenmp'],
+ 		     								extra_link_args=['-fopenmp']),
+						  ]
 setup(
 	cmdclass = {'build_ext': build_ext},
 	ext_modules= cythonize(ext_modules),

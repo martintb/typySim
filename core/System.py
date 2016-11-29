@@ -209,7 +209,9 @@ class System(object):
     '''
     Parameters
     ----------
-    i,j : int
+    i,j : int, *required*
+        Bond indices to be added to the :class:`System`.
+
         Bond indices passed as :class:`int` are assumed to be relative to the group of beads 
         being added.This means the passing [[0,1]] will add a bond between the first and 
         second beads **of the beads currently being added** and not the first and second 
@@ -228,6 +230,11 @@ class System(object):
           This approach is hacky and bad and alternative ideas would be accepted. The basic problem
           is that a passed molecule needs to be able to specify all new internal bonds and any bonds
           to existing beads simultaneously. Bonds between new and old beads need to be possible. 
+    shift : bool, *optional*
+        Value to use as the shift-value if the beads are passed as :class:`int`. The default value
+        is :func:`self.nbeads`.
+          
+          
      '''
     if shift is None:
       shift = self.nbeads
@@ -250,14 +257,15 @@ class System(object):
     created and the system containers are resized. This method handles the two possible 
     cases with adding a molecule to the system:
 
-    #. The molecule is made of up new beads and the system containers (x,y,z,types,etc)
-       need to be appropriately expanded and updated. In this case, a called to 
-       :func:`self.add_beads` needs to be made. 
-       This situation is activiated by passing the appropriate keyword arguments 
-       to this function which are relayed to :func:`self.add_beads`
-    #. The molecule is made up of beads already added to the system. In this case, the 
-       molecule simply needs to be updated with a reference to this system and added to
-       this systems molecule list. 
+    Case 1: The molecule is made of up new beads and the system containers (x,y,z,types,etc)
+    need to be appropriately expanded and updated. In this case, a called to 
+    :func:`self.add_beads` needs to be made. 
+    This situation is activiated by passing the appropriate keyword arguments 
+    to this function which are relayed to :func:`self.add_beads`
+
+    Case 2: The molecule is made up of beads already added to the system. In this case, the 
+    molecule simply needs to be updated with a reference to this system and added to
+    this systems molecule list. 
     '''
     if kwargs:
       molecule.indices = self.add_beads(**kwargs)
@@ -275,15 +283,15 @@ class System(object):
 
     Parameters
     ----------
-    molecule : object, *Optional*
+    molecule : object, *optional*
         Molecule object to be removed. If supplied, the molecule list is searched until a
         molecule object with a matching reference (i.e. a matching :func:`id`) is found. This 
         found object is then removed.
 
-    index : int, *Optional*
+    index : int, *optional*
         Index of molecule in :attr:`self.molecules` to be removed.
       
-    remove_beads : bool, *Optional*
+    remove_beads : bool, *optional*
         If True, :func:`self.remove_beads` is called on all indices inside the molecule being
         removed. If false, only the molecule reference object is removed. 
 

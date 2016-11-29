@@ -1,5 +1,5 @@
 import numpy as np
-from typySim.cy import CellList
+from typySim.core.cy import CellList
 
 class Box(object):
   ''' 
@@ -31,7 +31,7 @@ class Box(object):
 
   '''
   def __init__(self,L=-1,cell_grid=None):
-    self.system = system
+    self.system = None
     self._lx=L
     self._ly=L
     self._lz=L

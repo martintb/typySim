@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from typySim.cy import CellList
+from typySim.core.cy import CellList
 
 
 class CellList_TestCase(unittest.TestCase):
