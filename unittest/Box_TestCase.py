@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from typySim.core import Box
+from typySim.core.cy.Box import Box
 
 
 class Box_TestCase(unittest.TestCase):

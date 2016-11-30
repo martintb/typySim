@@ -1,6 +1,7 @@
 from cy import CellList
+from cy import Box
 from System import *
-from Box import *
+# from Box import *
 from Selection import *
 
 # import numpy as np
