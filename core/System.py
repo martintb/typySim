@@ -149,7 +149,7 @@ class System(object):
     #have bonds or are associated with molecules. 
     self.molecule_map = np.append(self.molecule_map,[self.DummyMolecule for i in range(new_nbeads)])
     self.bonds        = np.append(self.bonds,       [set()              for i in range(new_nbeads)])
-    if 'bonds' is not None:
+    if bonds is not None:
       for i,j in bonds:
         self.add_bond(i,j)
 
