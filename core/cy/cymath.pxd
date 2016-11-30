@@ -1,4 +1,5 @@
-
+#!python
+# distutils: language=c++
 cdef inline double norm(double[:])
 cdef inline double normalize(double[:])
 cdef inline double dot(double[:],double[:])

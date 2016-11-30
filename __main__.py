@@ -21,7 +21,7 @@ ext_modules = [
 						  ]
 setup(
 	cmdclass = {'build_ext': build_ext},
-	ext_modules= cythonize(ext_modules),
+	ext_modules= cythonize(ext_modules,language='c++'),
   script_name='compile.py',
   script_args=['build_ext','--inplace']
 )

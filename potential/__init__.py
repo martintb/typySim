@@ -1,2 +1,0 @@
-import lennardJones
-import weeksChandlerAndersen

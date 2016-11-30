@@ -1,8 +1,9 @@
 #!python
-#cython: boundscheck=False
-#cython: wraparound=False
-#cython: cdivision=True
-#cython: nonecheck=False
+# distutils: language=c++
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+# cython: nonecheck=False
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -328,7 +329,7 @@ cdef class CellList:
     cdef long currCell
     cdef long thisNeighNo
     cdef long i
-    neighs = []
+    cdef list neighs = []
     for i in range(27):
       currCell = self.cell_neighs[cellNo,i]
       thisNeighNo = self.top[currCell]

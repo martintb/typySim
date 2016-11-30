@@ -1,4 +1,5 @@
-
+#!python
+# distutils: language=c++
 
 cdef class Compute:
   cdef object system

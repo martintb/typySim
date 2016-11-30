@@ -1,8 +1,9 @@
 #!python
-#cython: boundscheck=False
-#cython: wraparound=False
-#cython: cdivision=True
-#cython: nonecheck=False
+# distutils: language=c++
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+# cython: nonecheck=False
 from libc.math cimport sqrt as c_sqrt
 
 cdef inline double norm(double[:] vec):
