@@ -16,33 +16,11 @@ from Compute cimport Compute
 
 from typySim.core.cy.Box cimport Box 
 from typySim.core.cy.CellList cimport CellList
+from typySim.potential.cy.AllPotentials cimport *
 
-
-ctypedef double (*PotentialPtr)(double,double,double,double)
-
-cdef double LennardJones(double r, double epsilon,double sigma, double rcut):
-  cdef double U = 0
-  cdef double r2inv,r6inv,r12inv,sig6,sig12;
-  if r<rcut:
-    r2inv = 1/(r*r)
-    r6inv = r2inv*r2inv*r2inv
-    r12inv = r6inv*r6inv
-    sig6 = c_pow(sigma,6)
-    sig12 = c_pow(sigma,12)
-    U += 4*epsilon * (sig12*r12inv - sig6*r6inv)
-  return U
-
-cdef double HardSphere(double r, double epsilon,double sigma, double rcut):
-  cdef double BIG = 1e9
-  cdef double U = 0
-  if r<sigma:
-    U = BIG
-  return U
-    
-    
 
 cdef class NonBondedPotentialEnergy(Compute):
-  cdef vector[ vector[PotentialPtr] ] PotentialMatrix;
+  cdef vector[ vector[PotentialPointer] ] PotentialMatrix;
   cdef double[:,:] epsilon_matrix 
   cdef double[:,:] sigma_matrix  
   cdef double[:,:] rcut_matrix  
@@ -61,7 +39,7 @@ cdef class NonBondedPotentialEnergy(Compute):
     self.rcut_matrix    = np.array(self.system.PairTable.get_matrix('rcut'))
     cdef long N = self.epsilon_matrix.shape[0]
     cdef Py_ssize_t i,j
-    cdef vector[PotentialPtr]  temp;
+    cdef vector[PotentialPointer]  temp;
     for i in range(N):
       temp.clear()
       for j in range(N):
@@ -92,7 +70,7 @@ cdef class NonBondedPotentialEnergy(Compute):
     cdef double dx,dy,dz,dist
     cdef double epsilon,sigma,rcut
     cdef long ti,tj
-    cdef PotentialPtr UFunk
+    cdef PotentialPointer UFunk
 
     for i in range(N-1):
       for j in range(i+1,N):
