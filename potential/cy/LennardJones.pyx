@@ -7,7 +7,7 @@
 
 from libc.math cimport pow as c_pow
 
-cdef double LennardJones(double r, double epsilon,double sigma, double rcut):
+cdef double LennardJones(double r, double epsilon,double sigma, double rcut) nogil:
   cdef double U = 0
   cdef double r2inv,r6inv,r12inv,sig6,sig12;
   if r<rcut:

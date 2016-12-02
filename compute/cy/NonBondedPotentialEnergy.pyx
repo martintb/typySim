@@ -1,9 +1,11 @@
 #!python
 # distutils: language=c++
-# #cython: boundscheck=False
-# #cython: wraparound=False
-# #cython: cdivision=True
-# #cython: nonecheck=False
+#cython: boundscheck=False
+#cython: wraparound=False
+#cython: cdivision=True
+#cython: nonecheck=False
+
+from cython.parallel import parallel,prange
 
 import numpy as np
 cimport numpy as np
@@ -63,16 +65,16 @@ cdef class NonBondedPotentialEnergy(Compute):
     U = self.calc_potential(x,y,z,types)
     return U
 
-  cdef double calc_potential(self, double[:] x, double[:] y, double[:] z, long[:] types):
+  cdef double calc_potential(self, double[:] x, double[:] y, double[:] z, long[:] types) nogil:
     cdef double U = 0
     cdef Py_ssize_t i,j
     cdef long N = x.shape[0]
     cdef double dx,dy,dz,dist
     cdef double epsilon,sigma,rcut
     cdef long ti,tj
-    cdef PotentialPointer UFunk
+    # cdef PotentialPointer UFunk
 
-    for i in range(N-1):
+    for i in prange(N-1,nogil=True):
       for j in range(i+1,N):
 
         dx = x[j] - x[i]
@@ -87,10 +89,11 @@ cdef class NonBondedPotentialEnergy(Compute):
 
         ti = types[i]
         tj = types[j]
-        rcut  = self.rcut_matrix[ti,tj]
-        eps   = self.epsilon_matrix[ti,tj]
-        sig   = self.sigma_matrix[ti,tj]
-        UFunk = self.PotentialMatrix[ti][tj]
-        U += UFunk(dist,eps,sig,rcut)
+        rcut    = self.rcut_matrix[ti,tj]
+        epsilon = self.epsilon_matrix[ti,tj]
+        sigma   = self.sigma_matrix[ti,tj]
+        # UFunk   = self.PotentialMatrix[ti][tj]
+        # U += UFunk(dist,epsilon,sigma,rcut)
+        U += self.PotentialMatrix[ti][tj](dist,epsilon,sigma,rcut)
     return U
      

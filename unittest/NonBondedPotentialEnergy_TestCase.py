@@ -77,7 +77,6 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PE = NonBondedPotentialEnergy(system)
     U = PE.compute()
     return U,U0
-
   def test_nopbc_homog_HS_sigma10(self):
     lx = 100
     ly = 100
@@ -90,7 +89,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','HS')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_pbc_homog_HS_sigma10(self):
     lx = 7
     ly = 10
@@ -103,7 +102,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','HS')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_nopbc_homog_LJ_sigma10(self):
     lx = 100
     ly = 100
@@ -116,7 +115,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','LJ')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_pbc_homog_LJ_sigma10(self):
     lx = 7
     ly = 10
@@ -129,7 +128,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','LJ')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_nopbc_homog_HS_sigma155(self):
     lx = 100
     ly = 100
@@ -142,7 +141,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','HS')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_pbc_homog_HS_sigma155(self):
     lx = 7
     ly = 10
@@ -155,7 +154,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','HS')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_nopbc_homog_LJ_sigm155(self):
     lx = 100
     ly = 100
@@ -168,7 +167,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','LJ')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_pbc_homog_LJ_sigma155(self):
     lx = 7
     ly = 10
@@ -181,7 +180,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('potential','LJ')
 
     U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0)
   def test_pbc_mixed_LJ(self):
     lx = 7
     ly = 10
@@ -203,7 +202,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     # PT.setUnsetValues('sigma',2.5)
 
     U,U0 = self.base_test(PT,lx,ly,lz,types=[0,1,1,0])
-    self.assertEqual(U,U0)
+    self.assertAlmostEqual(U,U0,delta=0.01)
 
 
 

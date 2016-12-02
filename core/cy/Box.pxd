@@ -9,9 +9,9 @@ cdef class Box(object):
   cdef float _xlo,_xhi
   cdef float _ylo,_yhi
   cdef float _zlo,_zhi
-  cdef double wrap_x(self,double)
-  cdef double wrap_y(self,double)
-  cdef double wrap_z(self,double)
-  cdef double wrap_dx(self,double)
-  cdef double wrap_dy(self,double)
-  cdef double wrap_dz(self,double)
+  cdef double wrap_x(self,double) nogil
+  cdef double wrap_y(self,double) nogil
+  cdef double wrap_z(self,double) nogil
+  cdef double wrap_dx(self,double) nogil
+  cdef double wrap_dy(self,double) nogil
+  cdef double wrap_dz(self,double) nogil

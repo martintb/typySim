@@ -5,4 +5,4 @@
 #cython: cdivision=True
 #cython: nonecheck=False
 
-cdef double LennardJones(double r, double epsilon,double sigma, double rcut)
+cdef double LennardJones(double r, double epsilon,double sigma, double rcut) nogil

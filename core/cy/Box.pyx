@@ -115,7 +115,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_x(self,double x):
+  cdef double wrap_x(self,double x) nogil :
     ''' Wrap a passed coordinate back into the box.'''
     if x>self._half_lx:
       x -=self._lx
@@ -127,7 +127,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_y(self,double y):
+  cdef double wrap_y(self,double y) nogil :
     ''' Wrap a passed coordinate back into the box.'''
     if y>self._half_ly:
       y -=self._ly
@@ -139,7 +139,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_z(self,double z):
+  cdef double wrap_z(self,double z) nogil :
     if z>self._half_lz:
       z -=self._lz
     elif z<-self._half_lz:
@@ -150,7 +150,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_dx(self,double dx):
+  cdef double wrap_dx(self,double dx) nogil :
     ''' Wrap a passed coordinate back into the box.'''
     dx = c_fabs(dx)
     if dx>self._half_lx:
@@ -163,7 +163,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_dy(self,double dy):
+  cdef double wrap_dy(self,double dy) nogil :
     ''' Wrap a passed coordinate back into the box.'''
     dy = c_fabs(dy)
     if dy>self._half_ly:
@@ -176,7 +176,7 @@ cdef class Box:
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef double wrap_dz(self,double dz):
+  cdef double wrap_dz(self,double dz) nogil :
     dz = c_fabs(dz)
     if dz>self._half_lz:
       dz -=self._lz
