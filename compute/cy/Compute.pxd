@@ -3,7 +3,7 @@
 
 cdef class Compute:
   cdef object system
-  cdef unicode name
+  cdef str _name
   cdef long frame_skip
   cdef long block_size
-  cdef long num_frames
+  cdef long num_blocks

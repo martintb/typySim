@@ -55,16 +55,16 @@ cdef class CellList:
     cell number: single integer which identifies a cell
     cell index:  triple of integers which identifies a cell
   '''
-  cdef object logger
-  cdef bint central_origin
-  cdef long nx,ny,nz,
-  cdef double dx,dy,dz,bx,by,bz
-  cdef long ncells,ncells_1d,ncells_2d,ncells_3d
-  cdef long nbeads
-  cdef long[:] top
-  cdef long[:] neigh
-  cdef long[:] bead_cells
-  cdef long[:,:] cell_neighs
+  # cdef object logger
+  # cdef bint central_origin
+  # cdef long nx,ny,nz,
+  # cdef double dx,dy,dz,bx,by,bz
+  # cdef long ncells,ncells_1d,ncells_2d,ncells_3d
+  # cdef long nbeads
+  # cdef long[:] top
+  # cdef long[:] neigh
+  # cdef long[:] bead_cells
+  # cdef long[:,:] cell_neighs
   def __init__(self,nx,ny,nz):
     self.bx = -1
     self.by = -1

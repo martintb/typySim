@@ -8,14 +8,17 @@
 import numpy as np
 cimport numpy as np
 
-from Compute cimport Compute
-from libc.math cimport fabs as c_fabs
 from libc.math cimport sqrt as c_sqrt
 from libc.math cimport pow as c_pow
 from libcpp.vector cimport vector
 
-ctypedef double (*PotentialPtr)(double,double,double,double)
+from Compute cimport Compute
 
+from typySim.core.cy.Box cimport Box 
+from typySim.core.cy.CellList cimport CellList
+
+
+ctypedef double (*PotentialPtr)(double,double,double,double)
 
 cdef double LennardJones(double r, double epsilon,double sigma, double rcut):
   cdef double U = 0
@@ -32,21 +35,25 @@ cdef double LennardJones(double r, double epsilon,double sigma, double rcut):
 cdef double HardSphere(double r, double epsilon,double sigma, double rcut):
   cdef double BIG = 1e9
   cdef double U = 0
-  cdef double r2inv,r6inv,r12inv,sig6,sig12;
   if r<sigma:
     U = BIG
   return U
     
     
 
-cdef class PotentialEnergy(Compute):
+cdef class NonBondedPotentialEnergy(Compute):
   cdef vector[ vector[PotentialPtr] ] PotentialMatrix;
   cdef double[:,:] epsilon_matrix 
   cdef double[:,:] sigma_matrix  
   cdef double[:,:] rcut_matrix  
+  cdef Box box
+  cdef CellList neighbor_list
   def __init__(self,system):
-    super(PotentialEnergy,self).__init__()
+    super(NonBondedPotentialEnergy,self).__init__()
+    self._name = "NonBondedPotentialEnergy"
     self.system = system
+    self.box = system.box
+    self.neighbor_list = system.box.neighbor_list
     self.build_matrices()
   def build_matrices(self):
     self.epsilon_matrix = np.array(self.system.PairTable.get_matrix('epsilon'))
@@ -58,9 +65,9 @@ cdef class PotentialEnergy(Compute):
     for i in range(N):
       temp.clear()
       for j in range(N):
-        if (self.PairTable('potential',i,j) == 'HS'):
+        if (self.system.PairTable['potential',i,j] == 'HS'):
           temp.push_back(HardSphere)
-        elif (self.PairTable('potential',i,j) == 'LJ'):
+        elif (self.system.PairTable['potential',i,j] == 'LJ'):
           temp.push_back(LennardJones)
       self.PotentialMatrix.push_back(temp)
   def compute(self):
@@ -88,20 +95,24 @@ cdef class PotentialEnergy(Compute):
     cdef PotentialPtr UFunk
 
     for i in range(N-1):
-      for j in range(i,N):
+      for j in range(i+1,N):
 
-        dx = c_fabs(x[j] - x[i])
-        dy = c_fabs(y[j] - y[i])
-        dz = c_fabs(z[j] - z[i])
+        dx = x[j] - x[i]
+        dy = y[j] - y[i]
+        dz = z[j] - z[i]
+
+        dx = self.box.wrap_dx(dx)
+        dy = self.box.wrap_dy(dy)
+        dz = self.box.wrap_dz(dz)
+
         dist = c_sqrt(dx*dx + dy*dy + dz*dz)
 
         ti = types[i]
-        tj = types[i]
+        tj = types[j]
         rcut  = self.rcut_matrix[ti,tj]
         eps   = self.epsilon_matrix[ti,tj]
         sig   = self.sigma_matrix[ti,tj]
         UFunk = self.PotentialMatrix[ti][tj]
         U += UFunk(dist,eps,sig,rcut)
-
     return U
      

@@ -1,8 +1,9 @@
 from cy import CellList
 from cy import Box
 from System import *
-# from Box import *
 from Selection import *
+from PairTable import *
+from ValueTable import *
 
 # import numpy as np
 

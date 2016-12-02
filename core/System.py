@@ -1,6 +1,6 @@
 import numpy as np
-from Box import Box
 from typySim.molecule import DummyMolecule
+from  PairTable import PairTable
 
 class System(object):
   ''' 
@@ -69,7 +69,7 @@ class System(object):
     self._box = None 
     self._engine = None
     self.neighbor_list = None
-
+    
     # sentinel dummy molecule object. A reference to this molecule will be placed 
     # in the molecules list when that bead is not "owned" by a molecule
     self.DummyMolecule = DummyMolecule()

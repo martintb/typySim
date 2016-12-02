@@ -1,12 +1,17 @@
 #!python 
 # distutils: language=c++
 
-cdef class Box:
-  cdef object system,neighbor_list
+cdef class Box(object):
+  cdef public object system
+  cdef public object neighbor_list
   cdef float _lx,_ly,_lz
   cdef float _half_lx,_half_ly,_half_lz
   cdef float _xlo,_xhi
   cdef float _ylo,_yhi
   cdef float _zlo,_zhi
-  cdef void wrap_position(self,double x,double y, double z)
-  cdef void wrap_distance(self,double dx,double dy, double dz)
+  cdef double wrap_x(self,double)
+  cdef double wrap_y(self,double)
+  cdef double wrap_z(self,double)
+  cdef double wrap_dx(self,double)
+  cdef double wrap_dy(self,double)
+  cdef double wrap_dz(self,double)

@@ -4,7 +4,7 @@ import operator
 
 class PairTable(Table):
   def __init__(self,types,parms,symmetric=True):
-    self.symmetric = True
+    self.symmetric = symmetric
     base_table = {t1:{t2:None for t2 in types} for t1 in types}
     super(PairTable,self).__init__(types,parms,base_table)
   def __iter__(self):
@@ -114,8 +114,8 @@ class PairTable(Table):
     N = len(self.types)
     matrix = [[None for i in range(N)] for j in range(N)]
     for t1,t2 in self.pairs:
-      n1 = self.A2N[t1] - 1 #numeric types start from 1 b/c LAMMPS
-      n2 = self.A2N[t2] - 1
+      n1 = self.A2N[t1]
+      n2 = self.A2N[t2]
       matrix[n1][n2] = self.values[parm][t1][t2]
       matrix[n2][n1] = self.values[parm][t2][t1]
     return matrix

@@ -9,10 +9,13 @@
 cdef class Compute:
   def __init__(self):
     self.system = None
-    self.name = u"BaseCompute"
+    self._name = "BaseCompute"
     self.frame_skip = -1
     self.block_size = -1
     self.num_blocks = -1
+  @property
+  def name(self):
+    return self._name
   def set_calc_times(self,frame_skip,block_size,num_frames):
     self.frame_skip = frame_skip
     self.block_size = block_size

@@ -26,18 +26,24 @@ class Box_TestCase(unittest.TestCase):
 
     # lz setter
     box.lz = box_lengths[2]
-    self.assertTupleEqual(box.L,(-1,box_lengths[1],box_lengths[2]))
+    # self.assertTupleEqual(box.L,(-1,box_lengths[1],box_lengths[2]))
+    self.assertAlmostEqual(box.L[0],-1,delta=0.01)
+    self.assertAlmostEqual(box.L[1],box_lengths[1],delta=0.01)
+    self.assertAlmostEqual(box.L[2],box_lengths[2],delta=0.01)
 
     # half_L 
-    self.assertTupleEqual(box.half_L,(-1/2.0,box_lengths[1]/2.0,box_lengths[2]/2.0))
+    # self.assertTupleEqual(box.half_L,(-1/2.0,box_lengths[1]/2.0,box_lengths[2]/2.0))
+    self.assertAlmostEqual(box.half_L[0],-1/2.0,delta=0.01)
+    self.assertAlmostEqual(box.half_L[1],box_lengths[1]/2.0,delta=0.01)
+    self.assertAlmostEqual(box.half_L[2],box_lengths[2]/2.0,delta=0.01)
 
     #lo/hi
-    t1 = (box.xlo,box.ylo,box.zlo)
-    t2 = (box.xhi,box.yhi,box.zhi)
-    t3 = (1/2.0,-box_lengths[1]/2.0,-box_lengths[2]/2.0)
-    t4 = (-1/2.0,box_lengths[1]/2.0,box_lengths[2]/2.0)
-    self.assertTupleEqual(t1,t3)
-    self.assertTupleEqual(t2,t4)
+    self.assertAlmostEqual(box.xhi,-1/2.0,delta=0.01)
+    self.assertAlmostEqual(box.xlo,1/2.0,delta=0.01)
+    self.assertAlmostEqual(box.yhi,box_lengths[1]/2.0,delta=0.01)
+    self.assertAlmostEqual(box.ylo,-box_lengths[1]/2.0,delta=0.01)
+    self.assertAlmostEqual(box.zhi,box_lengths[2]/2.0,delta=0.01)
+    self.assertAlmostEqual(box.zlo,-box_lengths[2]/2.0,delta=0.01)
 
 
 

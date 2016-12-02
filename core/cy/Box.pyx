@@ -110,42 +110,80 @@ cdef class Box:
   #########################
   # CYTHON ONLY FUNCTIONS #
   #########################
+
   @cython.boundscheck(False)
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef void wrap_position(self,double x,double y, double z):
+  cdef double wrap_x(self,double x):
     ''' Wrap a passed coordinate back into the box.'''
     if x>self._half_lx:
-      x-=self._lx
+      x -=self._lx
     elif x<-self._half_lx:
-      x+=self._lx
-
-    if y>self._half_ly:
-      y-=self._ly
-    elif y<-self._half_ly:
-      y+=self._ly
-
-    if z>self._half_lz:
-      z-=self._lz
-    elif z<-self._half_lz:
-      z+=self._lz
+      x +=self._lx
+    return x
 
   @cython.boundscheck(False)
   @cython.wraparound(False)
   @cython.cdivision(True)
   @cython.nonecheck(False)
-  cdef void wrap_distance(self,double dx,double dy, double dz):
+  cdef double wrap_y(self,double y):
+    ''' Wrap a passed coordinate back into the box.'''
+    if y>self._half_ly:
+      y -=self._ly
+    elif y<-self._half_ly:
+      y +=self._ly
+    return y
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_z(self,double z):
+    if z>self._half_lz:
+      z -=self._lz
+    elif z<-self._half_lz:
+      z +=self._lz
+    return z
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dx(self,double dx):
     ''' Wrap a passed coordinate back into the box.'''
     dx = c_fabs(dx)
-    dy = c_fabs(dy)
-    dz = c_fabs(dz)
     if dx>self._half_lx:
-      dx-=self._lx
+      dx -=self._lx
+    elif dx<-self._half_lx:
+      dx +=self._lx
+    return dx
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dy(self,double dy):
+    ''' Wrap a passed coordinate back into the box.'''
+    dy = c_fabs(dy)
     if dy>self._half_ly:
-      dy-=self._ly
+      dy -=self._ly
+    elif dy<-self._half_ly:
+      dy +=self._ly
+    return dy
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dz(self,double dz):
+    dz = c_fabs(dz)
     if dz>self._half_lz:
-      dz-=self._lz
+      dz -=self._lz
+    elif dz<-self._half_lz:
+      dz +=self._lz
+    return dz
+
   ##########################
   # DIMENSIONAL PROPERTIES #
   ##########################

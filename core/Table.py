@@ -5,7 +5,7 @@ class Table(object):
     self.parms =  parms
     self.values = {p:copy.deepcopy(base_table) for p in parms}
     A2N = {}; N2A = {};
-    for n,t in enumerate(types,start=1):
+    for n,t in enumerate(types,start=0):
       #We want the 'types' to be non-int like (i.e. not-castable to int)
       #With this assumption, we can handle '1' and 1 as 
       # being equivalent "numeric" types (i.e. LAMMPS types)
@@ -17,8 +17,8 @@ class Table(object):
         raise TypeError('Types cannot be castable to int!')
       A2N[t] = n
       N2A[n] = t
-    A2N['NoType'] = 0 #add default "no-type'
-    N2A[0] = 'NoType'
+    # A2N['NoType'] = 0 #add default "no-type'
+    # N2A[0] = 'NoType'
     self.A2N = A2N #alpha-type to numeric-type mapping
     self.N2A = N2A #numeric-type to alpha-type mapping
     self.types = types
