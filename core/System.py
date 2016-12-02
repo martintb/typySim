@@ -69,6 +69,11 @@ class System(object):
     self._box = None 
     self._engine = None
     self.neighbor_list = None
+
+    #Placeholders for Table objects with contain the parameters associated with bonded and
+    # nonbonded interactions
+    self.NonBondedTable = None
+    self.BondedTable = None
     
     # sentinel dummy molecule object. A reference to this molecule will be placed 
     # in the molecules list when that bead is not "owned" by a molecule

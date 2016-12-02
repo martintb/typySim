@@ -2,6 +2,7 @@
 # distutils: language=c++
 
 cdef class CellList(object):
+  cdef bint _ready
   cdef object logger
   cdef bint central_origin
   cdef long nx,ny,nz,

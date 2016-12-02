@@ -55,17 +55,10 @@ cdef class CellList:
     cell number: single integer which identifies a cell
     cell index:  triple of integers which identifies a cell
   '''
-  # cdef object logger
-  # cdef bint central_origin
-  # cdef long nx,ny,nz,
-  # cdef double dx,dy,dz,bx,by,bz
-  # cdef long ncells,ncells_1d,ncells_2d,ncells_3d
-  # cdef long nbeads
-  # cdef long[:] top
-  # cdef long[:] neigh
-  # cdef long[:] bead_cells
-  # cdef long[:,:] cell_neighs
   def __init__(self,nx,ny,nz):
+    if (nx<3) or (ny<3) or (nz<3):
+      raise ValueError('Need at least 3 divisions in each direction for CellList to work!')
+    self._ready=False
     self.bx = -1
     self.by = -1
     self.bz = -1
@@ -86,6 +79,9 @@ cdef class CellList:
     self.logger.debug('--> Number of Cells: {:d}'.format(self.ncells))
     self.logger.debug('--> Number of Cells 1D,2D,3D: {:d} {:d} {:d}'.format(self.ncells_1d,self.ncells_2d,self.ncells_3d))
     self.create_cell_neighbors()
+  @property
+  def ready(self):
+    return self._ready
   def create_cell_neighbors(self):
     '''
     Create a list of each cells immediate "neighbors"
@@ -188,6 +184,8 @@ cdef class CellList:
 
     To call this function, you must have already called set_box_size
     '''
+    if self.bx == self.by == self.bz == -1:
+      raise ValueError('This CellList doesn\'t have a box size set for it!')
     self.logger.debug('==> Creating new nlist from scratch')
     self.central_origin=central_origin
     # self.set_box_size(box[0],box[1],box[2])
@@ -198,6 +196,7 @@ cdef class CellList:
       yy = y[beadNo]
       zz = z[beadNo]
       self.insert_bead(beadNo,xx,yy,zz)
+    self._ready=True
   cpdef void insert_bead(self,long beadNo, double x,double y,double z):
     '''
     Insert bead into neighbor list. If neccessary, resizes the nlists.

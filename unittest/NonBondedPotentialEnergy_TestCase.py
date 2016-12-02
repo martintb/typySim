@@ -40,9 +40,9 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
         eps = PT['epsilon',t[i],t[j]]
         sig = PT['sigma',t[i],t[j]]
         rcut = PT['rcut',t[i],t[j]]
-        if PT['potential',t[i],t[j]]=='HS':
+        if PT['potential',t[i],t[j]]=='HardSphere':
           U+=self.hard_sphere(dist,eps,sig,rcut)
-        elif PT['potential',t[i],t[j]]=='LJ':
+        elif PT['potential',t[i],t[j]]=='LennardJones':
           U+=self.lennard_jones(dist,eps,sig,rcut)
         else:
           raise ValueError('Not set up for this potential!')
@@ -62,21 +62,36 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
           z.append(k)
           t.append(types.next())
     return x,y,z,t
-  def base_test(self,PT,lx,ly,lz,types=None):
-    x,y,z,t = self.make_rubix(N=3,types=types)
+  def base_test(self,PT,lx,ly,lz,types=None,N=3,box_resize=None):
+    x,y,z,t = self.make_rubix(N=N,types=types)
     U0 = self.calc_all_potential(x,y,z,t,lx,ly,lz,PT)
     
 
     system = System()
     system.add_beads(x=x,y=y,z=z,types=t)
-    system.box = Box()
+    system.box = Box(cell_grid=(3,3,3))
     system.box.lx = lx
     system.box.ly = ly
     system.box.lz = lz
-    system.PairTable = PT
+
+    xarray = np.array(x,dtype=np.float)
+    yarray = np.array(y,dtype=np.float)
+    zarray = np.array(z,dtype=np.float)
+    system.box.neighbor_list.build_nlist(xarray,yarray,zarray,True)
+
+    system.NonBondedTable = PT
     PE = NonBondedPotentialEnergy(system)
-    U = PE.compute()
-    return U,U0
+    U1 = PE.compute()
+    U2 = PE.compute(ignore_neighbor_list=True)
+    if box_resize is None:
+      return U0,U1,U2
+    system.box.lx = box_resize[0]
+    system.box.ly = box_resize[1]
+    system.box.lz = box_resize[2]
+    U3 = self.calc_all_potential(x,y,z,t,system.box.lx,system.box.ly,system.box.lz,PT)
+    U4 = PE.compute()
+    U5 = PE.compute(ignore_neighbor_list=True)
+    return U0,U1,U2,U3,U4,U5
   def test_nopbc_homog_HS_sigma10(self):
     lx = 100
     ly = 100
@@ -86,23 +101,11 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('epsilon',1.0)
     PT.setUnsetValues('sigma',1.0)
     PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','HS')
+    PT.setUnsetValues('potential','HardSphere')
 
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
-  def test_pbc_homog_HS_sigma10(self):
-    lx = 7
-    ly = 10
-    lz = 8
-
-    PT = PairTable(types=['P1'],parms=['epsilon','rcut','sigma','potential'])
-    PT.setUnsetValues('epsilon',1.0)
-    PT.setUnsetValues('sigma',1.0)
-    PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','HS')
-
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
+    U0,U1,U2 = self.base_test(PT,lx,ly,lz)
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
   def test_nopbc_homog_LJ_sigma10(self):
     lx = 100
     ly = 100
@@ -112,23 +115,11 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('epsilon',1.0)
     PT.setUnsetValues('sigma',1.0)
     PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','LJ')
+    PT.setUnsetValues('potential','LennardJones')
 
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
-  def test_pbc_homog_LJ_sigma10(self):
-    lx = 7
-    ly = 10
-    lz = 8
-
-    PT = PairTable(types=['P1'],parms=['epsilon','rcut','sigma','potential'])
-    PT.setUnsetValues('epsilon',1.0)
-    PT.setUnsetValues('sigma',1.0)
-    PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','LJ')
-
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
+    U0,U1,U2 = self.base_test(PT,lx,ly,lz)
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
   def test_nopbc_homog_HS_sigma155(self):
     lx = 100
     ly = 100
@@ -138,52 +129,42 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT.setUnsetValues('epsilon',1.0)
     PT.setUnsetValues('sigma',1.55)
     PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','HS')
+    PT.setUnsetValues('potential','HardSphere')
 
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
+    U0,U1,U2 = self.base_test(PT,lx,ly,lz)
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
   def test_pbc_homog_HS_sigma155(self):
-    lx = 7
-    ly = 10
-    lz = 8
+    lx = 10
+    ly = 11
+    lz = 10
 
     PT = PairTable(types=['P1'],parms=['epsilon','rcut','sigma','potential'])
     PT.setUnsetValues('epsilon',1.0)
     PT.setUnsetValues('sigma',1.55)
     PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','HS')
+    PT.setUnsetValues('potential','HardSphere')
 
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
-  def test_nopbc_homog_LJ_sigm155(self):
-    lx = 100
-    ly = 100
-    lz = 100
-
-    PT = PairTable(types=['P1'],parms=['epsilon','rcut','sigma','potential'])
-    PT.setUnsetValues('epsilon',1.0)
-    PT.setUnsetValues('sigma',1.55)
-    PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','LJ')
-
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
-  def test_pbc_homog_LJ_sigma155(self):
-    lx = 7
-    ly = 10
-    lz = 8
+    U0,U1,U2 = self.base_test(PT,lx,ly,lz)
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
+  def test_pbc_homog_LJ_sigma10(self):
+    lx = 10
+    ly = 11
+    lz = 10
 
     PT = PairTable(types=['P1'],parms=['epsilon','rcut','sigma','potential'])
     PT.setUnsetValues('epsilon',1.0)
-    PT.setUnsetValues('sigma',1.55)
+    PT.setUnsetValues('sigma',1.0)
     PT.setUnsetValues('rcut',2.5)
-    PT.setUnsetValues('potential','LJ')
+    PT.setUnsetValues('potential','LennardJones')
 
-    U,U0 = self.base_test(PT,lx,ly,lz)
-    self.assertAlmostEqual(U,U0)
+    U0,U1,U2 = self.base_test(PT,lx,ly,lz)
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
   def test_pbc_mixed_LJ(self):
-    lx = 7
-    ly = 10
+    lx = 8
+    ly = 9
     lz = 8
 
     PT = PairTable(types=['P1','P2'],parms=['epsilon','rcut','sigma','potential'])
@@ -193,21 +174,16 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     PT['sigma','P1','P1'] = 1.0
     PT['sigma','P1','P2'] = 1.1
     PT['sigma','P2','P2'] = 1.25
-
-    PT['potential','P1','P2'] = 'HS'
-
-    PT.setUnsetValues('potential','LJ')
+    PT['potential','P1','P2'] = 'HardSphere'
+    PT.setUnsetValues('potential','LennardJones')
     PT.setUnsetValues('rcut',2.5)
-    # PT.setUnsetValues('epsilon',1.0)
-    # PT.setUnsetValues('sigma',2.5)
 
-    U,U0 = self.base_test(PT,lx,ly,lz,types=[0,1,1,0])
-    self.assertAlmostEqual(U,U0,delta=0.01)
-
-
-
-
-
+    U0,U1,U2,U3,U4,U5 = self.base_test(PT,lx,ly,lz,N=4,box_resize=(100,100,100))
+    self.assertAlmostEqual(U0,U1)
+    self.assertAlmostEqual(U0,U2)
+    self.assertAlmostEqual(U3,U4)
+    self.assertAlmostEqual(U3,U5)
+    self.assertNotAlmostEqual(U0,U3)
 
 
 
