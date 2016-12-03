@@ -58,7 +58,7 @@ class System(object):
     self.z              = np.array([],dtype=np.float)
     self.types          = np.array([],dtype=np.int)
     self.molecule_map   = np.array([],dtype=object)
-    self.bonds          = np.array([],dtype=object)
+    self.bonds          = None
     self.molecules      = list()
     #self. compute
 
@@ -78,6 +78,8 @@ class System(object):
     # sentinel dummy molecule object. A reference to this molecule will be placed 
     # in the molecules list when that bead is not "owned" by a molecule
     self.DummyMolecule = DummyMolecule()
+
+    self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
   @property
   def engine(self):
     return self._engine
@@ -153,7 +155,10 @@ class System(object):
     #the molecule_map and bonds data structures must be initialized regardless of whether the beads
     #have bonds or are associated with molecules. 
     self.molecule_map = np.append(self.molecule_map,[self.DummyMolecule for i in range(new_nbeads)])
-    self.bonds        = np.append(self.bonds,       [set()              for i in range(new_nbeads)])
+    if self.bonds is None:
+      self.bonds        = np.full((new_nbeads,self.max_nbonds),-1,dtype=np.int)
+    else:
+      self.bonds        = np.append(self.bonds, np.full((new_nbeads,self.max_nbonds),-1,dtype=np.int),axis=0)
     if bonds is not None:
       for i,j in bonds:
         self.add_bond(i,j)
@@ -186,6 +191,7 @@ class System(object):
         old2new[oldi] = newi
         new2old[newi] = oldi
         newi+=1
+    old2new[-1] = np.nan #keep dummy values unchanges
 
     removed_nbeads = len(indices)
     self.nbeads -= removed_nbeads
@@ -195,7 +201,7 @@ class System(object):
     self.z            = np.delete(self.z,indices)
     self.types        = np.delete(self.types,indices)
     self.molecule_map = np.delete(self.molecule_map,indices)
-    self.bonds        = np.delete(self.bonds,indices)
+    self.bonds        = np.delete(self.bonds,indices,axis=0)
 
     # Processing the bonds is a bit of a pain. We need to remove all
     # references to removed indices while also mapping from old to 
@@ -206,8 +212,13 @@ class System(object):
       for i in old_bonded_list:
         if old2new[i] is not None:
           new_bonded_list.append(old2new[i])
-      new_bonds.append(set(new_bonded_list))
-    self.bonds = np.array(new_bonds,dtype=object)
+        else:
+          new_bonded_list.append(np.nan)
+      temp = np.array(new_bonded_list)
+      temp.sort()
+      temp[np.isnan(temp)] = -1
+      new_bonds.append(temp)
+    self.bonds = np.array(new_bonds,dtype=np.int)
 
     return {'old2new':old2new,'new2old':new2old,'n2o':new2old,'o2n':old2new}
   def add_bond(self,i,j,shift=None):
@@ -254,8 +265,27 @@ class System(object):
     else:
       bondj = j+shift
 
-    self.bonds[bondi].add(bondj)
-    self.bonds[bondj].add(bondi)
+    self.update_bondlist(bondi,bondj)
+    self.update_bondlist(bondj,bondi)
+
+  def update_bondlist(self,i,j):
+    new_j = j
+    for bond_num in range(self.max_nbonds):
+      j = self.bonds[i,bond_num]
+
+      if j == -1:
+        self.bonds[i,bond_num] = new_j
+        break
+      elif j == new_j:
+        break # This bond already exists! Abort!
+      elif j > new_j:
+        self.bonds[i,bond_num] = new_j
+        new_j = j
+
+      if bond_num==(self.max_nbonds-1):
+        raise ValueError('Too many bonds to bead {} when adding bead {}: {}'.format(i,j,self.bonds[i]))
+        
+
   def add_molecule(self,molecule,**kwargs):
     ''' 
     Adds a molecule reference object to the system. If kwargs are supplied, new beads are

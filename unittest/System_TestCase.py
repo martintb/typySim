@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 from typySim.core import System
+import ipdb; ist = ipdb.set_trace
 
 
 class System_TestCase(unittest.TestCase):
@@ -19,8 +20,8 @@ class System_TestCase(unittest.TestCase):
     self.assertListEqual(list(system.y),y)
     self.assertListEqual(list(system.z),z)
     self.assertListEqual(list(system.types),types)
-    self.assertSetEqual(system.bonds[0],set([1,3]))
-    self.assertSetEqual(system.bonds[3],set([0,2]))
+    np.testing.assert_array_equal(system.bonds[3],np.array([0,2,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[0],np.array([1,3,-1,-1,-1]))
 
     #Check to make sure that, non-matching bead arrays are rejected
     x2 = [1]
@@ -36,9 +37,9 @@ class System_TestCase(unittest.TestCase):
     self.assertListEqual(list(system.y),y*2)
     self.assertListEqual(list(system.z),z*2)
     self.assertListEqual(list(system.types),types*2)
-    self.assertSetEqual(system.bonds[0],set([1,3,5]))
-    self.assertSetEqual(system.bonds[3],set([0,2]))
-    self.assertSetEqual(system.bonds[5],set([0]))
+    np.testing.assert_array_equal(system.bonds[0],np.array([1,3,5,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[3],np.array([0,2,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[5],np.array([0,-1,-1,-1,-1]))
   def test_remove_beads(self):
     '''
     The trickiest part of adding and removing beads is correctly
@@ -93,11 +94,11 @@ class System_TestCase(unittest.TestCase):
     self.assertListEqual(list(system.y),y)
     self.assertListEqual(list(system.z),z)
     self.assertListEqual(list(system.types),types)
-    self.assertSetEqual(system.bonds[0],set([1]))
-    self.assertSetEqual(system.bonds[1],set([0,2]))
-    self.assertSetEqual(system.bonds[2],set([1]))
-    self.assertSetEqual(system.bonds[3],set([4]))
-    self.assertSetEqual(system.bonds[4],set([3]))
+    np.testing.assert_array_equal(system.bonds[0],np.array([1,-1,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[1],np.array([0,2,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[2],np.array([1,-1,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[3],np.array([4,-1,-1,-1,-1]))
+    np.testing.assert_array_equal(system.bonds[4],np.array([3,-1,-1,-1,-1]))
 
 
 
