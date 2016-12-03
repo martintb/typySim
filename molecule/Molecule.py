@@ -88,7 +88,7 @@ class Molecule(object):
     if index_mapping is not None:
       new_indices = []
       for i in self.indices:
-        if index_mapping[i] is not None:
+        if index_mapping[i] !=-1:
           new_indices.append(index_mapping[i])
       self._indices = set(new_indices)
 

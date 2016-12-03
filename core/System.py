@@ -1,6 +1,7 @@
 import numpy as np
 from typySim.molecule import DummyMolecule
-from  PairTable import PairTable
+from typySim.core import BondList
+from  typySim.core import PairTable
 
 class System(object):
   ''' 
@@ -58,7 +59,6 @@ class System(object):
     self.z              = np.array([],dtype=np.float)
     self.types          = np.array([],dtype=np.int)
     self.molecule_map   = np.array([],dtype=object)
-    self.bonds          = None
     self.molecules      = list()
     #self. compute
 
@@ -69,6 +69,8 @@ class System(object):
     self._box = None 
     self._engine = None
     self.neighbor_list = None
+
+    self.bonds = BondList()
 
     #Placeholders for Table objects with contain the parameters associated with bonded and
     # nonbonded interactions
@@ -155,13 +157,11 @@ class System(object):
     #the molecule_map and bonds data structures must be initialized regardless of whether the beads
     #have bonds or are associated with molecules. 
     self.molecule_map = np.append(self.molecule_map,[self.DummyMolecule for i in range(new_nbeads)])
-    if self.bonds is None:
-      self.bonds        = np.full((new_nbeads,self.max_nbonds),-1,dtype=np.int)
-    else:
-      self.bonds        = np.append(self.bonds, np.full((new_nbeads,self.max_nbonds),-1,dtype=np.int),axis=0)
+
+    self.bonds.expand(new_nbeads)
     if bonds is not None:
       for i,j in bonds:
-        self.add_bond(i,j)
+        self.bonds.add(i,j,self.nbeads)
 
     #We'll return a list of the new indices that we've just added to the system
     #This way the user can immediately act on these added beads e.g. set their molecule
@@ -181,17 +181,17 @@ class System(object):
 
     #create index map. These will be needed for
     #converting molecules indices
-    old2new = {}
-    new2old = {}
+
+    old2new = np.full((self.nbeads),-1,dtype=np.int)
+    new2old = np.full((self.nbeads-len(indices)),-1,dtype=np.int)
     newi = 0
     for oldi in range(self.nbeads):
       if oldi in indices:
-        old2new[oldi] = None
+        old2new[oldi] = -1
       else:
         old2new[oldi] = newi
         new2old[newi] = oldi
         newi+=1
-    old2new[-1] = -1#keep dummy values unchanges
 
     removed_nbeads = len(indices)
     self.nbeads -= removed_nbeads
@@ -201,92 +201,11 @@ class System(object):
     self.z            = np.delete(self.z,indices)
     self.types        = np.delete(self.types,indices)
     self.molecule_map = np.delete(self.molecule_map,indices)
-    self.bonds        = np.delete(self.bonds,indices,axis=0)
 
-    # Processing the bonds is a bit of a pain. We need to remove all
-    # references to removed indices while also mapping from old to 
-    # new index numbers.
-    new_bonds = []
-    for old_bonded_list in self.bonds:
-      new_bonded_list = []
-      for i in old_bonded_list:
-        if old2new[i] is not None:
-          new_bonded_list.append(old2new[i])
-        else:
-          new_bonded_list.append(-1)
-      # We want to put the -1 at the end of the array. This accomplishes that by
-      # making the sort function think they are infinity (np.inf). The neat thing is 
-      # that the underlying values are unchanged so we get the desired behavior. 
-      new_bonded_list = sorted(new_bonded_list,key=lambda x: np.inf if (x==-1) else x)
-      new_bonds.append(new_bonded_list)
-    self.bonds = np.array(new_bonds,dtype=np.int)
+    self.bonds.shrink(indices)
+    self.bonds.remap(old2new)
 
     return {'old2new':old2new,'new2old':new2old,'n2o':new2old,'o2n':old2new}
-  def add_bond(self,i,j,shift=None):
-    '''
-    Parameters
-    ----------
-    i,j : int, *required*
-        Bond indices to be added to the :class:`System`.
-
-        Bond indices passed as :class:`int` are assumed to be relative to the group of beads 
-        being added.This means the passing [[0,1]] will add a bond between the first and 
-        second beads **of the beads currently being added** and not the first and second 
-        beads of the system. This effect is achieved by shifting the passed bond indices 
-        by self.nbeads.
-
-        Bond indices passed as :class:`str` indicate that you wish to bond against an index
-        that has already been added o the system. These bond indices are made positive, but 
-        left unshifted. 
-
-        .. Warning::
-          No sanity checks are carried out on the bond indices. Make sure you don't attempt
-          to bond an bead index that doesn't exist in the system!
-
-        .. Warning::
-          This approach is hacky and bad and alternative ideas would be accepted. The basic problem
-          is that a passed molecule needs to be able to specify all new internal bonds and any bonds
-          to existing beads simultaneously. Bonds between new and old beads need to be possible. 
-    shift : bool, *optional*
-        Value to use as the shift-value if the beads are passed as :class:`int`. The default value
-        is :func:`self.nbeads`.
-          
-          
-     '''
-    if shift is None:
-      shift = self.nbeads
-
-    if isinstance(i,basestring):
-      bondi = int(i)
-    else:
-      bondi = i+shift
-
-    if isinstance(j,basestring):
-      bondj = int(j)
-    else:
-      bondj = j+shift
-
-    self.update_bondlist(bondi,bondj)
-    self.update_bondlist(bondj,bondi)
-
-  def update_bondlist(self,i,j):
-    new_j = j
-    for bond_num in range(self.max_nbonds):
-      j = self.bonds[i,bond_num]
-
-      if j == -1:
-        self.bonds[i,bond_num] = new_j
-        break
-      elif j == new_j:
-        break # This bond already exists! Abort!
-      elif j > new_j:
-        self.bonds[i,bond_num] = new_j
-        new_j = j
-
-      if bond_num==(self.max_nbonds-1):
-        raise ValueError('Too many bonds to bead {} when adding bead {}: {}'.format(i,j,self.bonds[i]))
-        
-
   def add_molecule(self,molecule,**kwargs):
     ''' 
     Adds a molecule reference object to the system. If kwargs are supplied, new beads are
