@@ -32,9 +32,9 @@ class System(object):
       associated with that bead index. A consequence of this data_structure 
       is that each bead index can only belong to one molecule at a time.
 
-  bonds :  list, size (nbeads)
-      A list of bonds  for each beads. The list datatype is used
-      because the number of bonds for each beads can vary.
+  bonds :  int ndarray, size (nbeads,max_nbonds)
+      A list of bonds  for each beads. Each bond list should be sorted with
+      -1 values signifying that no bond is present. 
 
   box : object
       A :class:`Box` object which handles all periodic wrapping and 
@@ -191,7 +191,7 @@ class System(object):
         old2new[oldi] = newi
         new2old[newi] = oldi
         newi+=1
-    old2new[-1] = np.nan #keep dummy values unchanges
+    old2new[-1] = -1#keep dummy values unchanges
 
     removed_nbeads = len(indices)
     self.nbeads -= removed_nbeads
@@ -213,11 +213,12 @@ class System(object):
         if old2new[i] is not None:
           new_bonded_list.append(old2new[i])
         else:
-          new_bonded_list.append(np.nan)
-      temp = np.array(new_bonded_list)
-      temp.sort()
-      temp[np.isnan(temp)] = -1
-      new_bonds.append(temp)
+          new_bonded_list.append(-1)
+      # We want to put the -1 at the end of the array. This accomplishes that by
+      # making the sort function think they are infinity (np.inf). The neat thing is 
+      # that the underlying values are unchanged so we get the desired behavior. 
+      new_bonded_list = sorted(new_bonded_list,key=lambda x: np.inf if (x==-1) else x)
+      new_bonds.append(new_bonded_list)
     self.bonds = np.array(new_bonds,dtype=np.int)
 
     return {'old2new':old2new,'new2old':new2old,'n2o':new2old,'o2n':old2new}
