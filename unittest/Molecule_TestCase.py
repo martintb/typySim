@@ -165,6 +165,8 @@ class Molecule_TestCase(unittest.TestCase):
     system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2)
     system.add_molecule(chain3,x=x3,y=y3,z=z3,types=types3,bonds=bonds3)
 
+
+
     self.assertEqual(system.nbeads,len(x1+x2+x3))
     self.assertIs(system.molecules[0],chain1)
     self.assertIs(system.molecules[1],chain2)
@@ -232,6 +234,7 @@ class Molecule_TestCase(unittest.TestCase):
     np.testing.assert_array_equal(system.bonds[5],np.array([4, 6,-1,-1,-1]))
     np.testing.assert_array_equal(system.bonds[6],np.array([5, 7,-1,-1,-1]))
     np.testing.assert_array_equal(system.bonds[7],np.array([6,-1,-1,-1,-1]))
+
   def test_add_indices(self):
     ''' 
     Add three chains to a system, remove the middle chain, and then 

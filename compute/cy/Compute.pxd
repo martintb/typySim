@@ -7,3 +7,4 @@ cdef class Compute:
   cdef long frame_skip
   cdef long block_size
   cdef long num_blocks
+  cdef list values

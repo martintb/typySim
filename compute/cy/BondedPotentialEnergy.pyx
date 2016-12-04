@@ -59,6 +59,7 @@ cdef class BondedPotentialEnergy(Compute):
     bonds = self.system.bonds
 
     U = self.calc(x,y,z,types,bonds)
+    self.values.append(U)
     return U
   cdef double calc(self, double[:] x, double[:] y, double[:] z, long[:] types, long[:,:] bonds) nogil:
     cdef double U = 0

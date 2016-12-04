@@ -69,6 +69,7 @@ cdef class NonBondedPotentialEnergy(Compute):
       U = self.calc_nlist(x,y,z,types)
     else:
       U = self.calc(x,y,z,types)
+    self.values.append(U)
     return U
   cdef double calc(self, double[:] x, double[:] y, double[:] z, long[:] types) nogil:
     cdef double U = 0

@@ -6,6 +6,8 @@
 # cython: nonecheck=False
 import numpy as np
 cimport numpy as np
+from scipy.sparse.lil import lil_matrix
+from scipy.sparse.csgraph import connected_components
 
 intType = np.long
 floatType = np.float32
@@ -142,4 +144,14 @@ cdef class BondList:
       # that the underlying values are unchanged so we get the desired behavior. 
       blist = np.array(sorted(self.bonds[i],key=lambda x: np.inf if (x==-1) else x))
       self.bonds[i][:] = blist 
+  def connected(self):
+    cdef long num_bonds = self.bonds.shape[0]
+    cdef object lil = lil_matrix((num_bonds,num_bonds))
+    cdef long bondj,bondi,j
+    for bondi in range(num_bonds):
+      for j in range(self.max_bonds_perbead):
+        bondj = self.bonds[bondi,j]
+        if (bondj!=-1) and (bondi<bondj):
+          lil[bondi,bondj] = 1.0
+    return connected_components(lil,directed=False)
 
