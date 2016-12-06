@@ -27,7 +27,9 @@ def surface(nx,ny,nz,diameter,
   if shift:
     positions -= np.average(positions,axis=0)
   molData ={}
-  molData['positions'] = positions
+  molData['x'] = positions[:,0]
+  molData['y'] = positions[:,1]
+  molData['z'] = positions[:,2]
   molData['types'] = types
   return molData
 

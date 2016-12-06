@@ -7,7 +7,7 @@ class HexagonalSurface(Molecule):
   def __init__(self):
     super(HexagonalSurface,self).__init__() #Need to call parent class' constructor
     self.name = 'HexagonalSurface'
-  def build(self,lx,ly,nz,diameter=1.0,topType=0,bottomType=2,middleType=1,modify_box=True):
+  def build(self,lx,ly,nz,diameter=1.0,topType=0,bottomType=2,middleType=1):
     #Find a close hexagonal grid for the requested box size
     nx,ny = shapes.hexagonal.position2Index(lx,ly)
     # nx and ny must be even for pbc to work
@@ -21,7 +21,7 @@ class HexagonalSurface(Molecule):
     Initial Box (lx,ly): ({},{}) 
     Final Box (lx,ly):   ({},{}) 
     Hex Grid (nx,ny):    ({},{})'''.format(lx,ly,lx_fit,ly_fit,nx,ny)
-    self.logger.debug(logStr)
+    # self.logger.debug(logStr)
     
     kwargs = {}
     kwargs['nx'] = nx
@@ -33,6 +33,6 @@ class HexagonalSurface(Molecule):
     kwargs['bottomType'] = bottomType
     molData = shapes.hexagonal.surface(**kwargs)
     boxData = {}
-    boxData['lx'] = lx
-    boxData['ly'] = ly
+    boxData['lx'] = lx_fit
+    boxData['ly'] = ly_fit
     return molData,boxData

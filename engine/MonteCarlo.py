@@ -36,8 +36,12 @@ class MonteCarlo(object):
     log_rate : int, *Optional*
         The rate at which the logger (at the INFO level) should log updates.
     '''
-    if self.system.box.cellList is not None:
-      self.system.box.cellList.build_nlist(self.system.positions,central_origin=True)
+    # if self.system.neighbor_list is not None:
+    # self.system.neighbor_list.build_nlist(self.system.x,self.s,central_origin=True)
+
+    self.TPE = self.system.get_compute('TotalPotentialEnergy')
+    self.TPE_list = []
+    self.TPE_list.append(self.TPE.compute())
 
     for i in range(num_attempts):
       move = random.choice(self.moveList)
@@ -47,6 +51,7 @@ class MonteCarlo(object):
       if success:
         self.rates['total_accepted'] += 1
         self.rates[move.name] += 1
+        self.TPE_list.append(sum(self.TPE.values[-1]))
       if (i%log_rate)==0:
         accepted = self.rates['total_accepted']
         attempted = self.rates['total_attempted']

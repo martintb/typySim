@@ -3,13 +3,19 @@ import numpy as np
 from math import sqrt
 from typySim.compute import NonBondedPotentialEnergy
 from typySim.core import System,Box,PairTable
+from typySim.molecule import HexagonalSurface
 from itertools import cycle
-import pdb; ist = pdb.set_trace
+import ipdb as pdb; ist = pdb.set_trace
+
+import struct
+def test(num,n=8):
+  return ''.join(bin(ord(c)).replace('0b', '').rjust(n, '0') for c in struct.pack('!f', num))
 
 
 class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
   def hard_sphere(self,r,epsilon,sigma,rcut):
-    if r<sigma:
+    tol = 1e-6
+    if (sigma-r)>tol:
       return 1e9
     else:
       return 0
@@ -35,8 +41,6 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
         if dz>lz/2.0:
           dz-=lz
         dist = sqrt(dx*dx+dy*dy+dz*dz)
-        if dist==0:
-          print 'i',i,x[i],y[i],z[i],t[i],'j',j,x[j],y[j],z[j],t[j]
         eps = PT['epsilon',t[i],t[j]]
         sig = PT['sigma',t[i],t[j]]
         rcut = PT['rcut',t[i],t[j]]
@@ -163,7 +167,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     self.assertAlmostEqual(U0,U1)
     self.assertAlmostEqual(U0,U2)
   def test_pbc_mixed_LJ(self):
-    lx = 8
+    lx = 8 
     ly = 9
     lz = 8
 
@@ -184,8 +188,49 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     self.assertAlmostEqual(U3,U4)
     self.assertAlmostEqual(U3,U5)
     self.assertNotAlmostEqual(U0,U3)
+  def test_pbc_hex_HS(self):
+    lx = 9
+    ly = 9
+    lz = 8
+    nz = 4
+
+    PT = PairTable(types=['P1','P2'],parms=['epsilon','rcut','sigma','potential'])
+    PT.setUnsetValues('epsilon',1.0)
+    PT.setUnsetValues('sigma',1.0)
+    PT.setUnsetValues('rcut',2.5)
+    PT.setUnsetValues('potential','HardSphere')
 
 
+    HS = HexagonalSurface()
+    molData, boxData = HS.build(lx,ly,nz,diameter=1.0,topType=0,bottomType=0,middleType=1)
+
+    x = molData['x']
+    y = molData['y']
+    z = molData['z']
+    t = molData['types']
+    lx = boxData['lx']
+    ly = boxData['ly']
+
+    U0 = self.calc_all_potential(x,y,z,t,lx,ly,lz,PT)
+
+    system = System()
+    system.add_beads(x=x,y=y,z=z,types=t)
+    system.box = Box(cell_grid=(3,3,3))
+    system.box.lx = lx
+    system.box.ly = ly
+    system.box.lz = lz
+
+    xarray = np.array(x,dtype=np.double)
+    yarray = np.array(y,dtype=np.double)
+    zarray = np.array(z,dtype=np.double)
+    system.box.neighbor_list.build_nlist(xarray,yarray,zarray,True)
+
+    system.NonBondedTable = PT
+    PE = NonBondedPotentialEnergy(system)
+    U1 = PE.compute()
+    U2 = PE.compute(ignore_neighbor_list=True)
+    self.assertAlmostEqual(U0,U2,delta=0.01)
+    self.assertAlmostEqual(U0,U1,delta=0.01)
 
 
 if __name__=="__main__":

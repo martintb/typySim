@@ -63,10 +63,11 @@ class Molecule(object):
     self._indices = set(values)
   def isDummy(self):
     '''Check identity against global DummyMolecule sentinel.'''
-    if self is (self.system.DummyMolecule):
-      return True
-    else:
-      return False
+    return False
+    # if self is (self.system.DummyMolecule):
+    #   return True
+    # else:
+    #   return False
   def __repr__(self):
     return "<{}>".format(self.name)
   def __str__(self):
@@ -92,9 +93,16 @@ class Molecule(object):
           new_indices.append(index_mapping[i])
       self._indices = set(new_indices)
 
+    if not self._indices:
+      # Molecule is empty! Signal for removal
+      return False
+
     # Mask is FALSE where the atom belongs to this molecule
     mask = np.ones_like(self.system.x,dtype=bool)
-    mask[self.indices] = False
+    try:
+      mask[self.indices] = False
+    except IndexError:
+      import ipdb; ipdb.set_trace()
 
     # These masked arrays are tricky, much care must be taken as
     # they don't exactly work the way you'd hope they would
@@ -113,6 +121,7 @@ class Molecule(object):
     self.bonds = []
     for idex in self.indices:
       self.bonds.append(self.system.bonds[idex])
+    return True
   def build(self):
     raise NotImplementedError('Molecule named \"{}\" hasn\'t defined a build method!'.format(self.name))
   def add_indices(self,indices):
@@ -123,7 +132,7 @@ class Molecule(object):
       self.system.molecule_map[index] = self
       # If oldMolecule is a not a placeholder, we need to remove 
       # references to this index from oldMolecule.
-      if oldMolecule.isDummy():
+      if not oldMolecule.isDummy():
         oldMolecule.remove_indices([index])
     self.reset()
   def remove_indices(self,indices):

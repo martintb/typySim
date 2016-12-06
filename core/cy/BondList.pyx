@@ -20,10 +20,12 @@ ctypedef np.float_t cDoubleType
 cdef class BondList:
   cdef public long[:,:] bonds
   cdef public long max_bonds_perbead
+  cdef public nbonds
   cdef bint init
   def __init__(self):
     self.max_bonds_perbead = 5
     self.init=False
+    self.nbonds = 0
   def __getitem__(self,long index):
     return self.bonds[index]
   def expand(self,long num):
@@ -32,6 +34,7 @@ cdef class BondList:
       self.init = True
     else:
       self.bonds    = np.append(self.bonds, np.full((num,self.max_bonds_perbead),-1,dtype=intType),axis=0)
+    self.nbonds = self.bonds.shape[0]
   def shrink(self,list indices):
     self.bonds  = np.delete(self.bonds,indices,axis=0)
   def add(self,i,j,shiftVal):

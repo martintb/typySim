@@ -64,8 +64,10 @@ cdef class Box:
     ''' Convenience function to wrapping all system positions back into the box. '''
     self.system.positions = self.numpy_wrap_position(self.system.positions)
     self.system.reset_all_molecules()
-  def numpy_wrap_position(self,vec):
+  def numpy_wrap_position(self,vec=None,x=None,y=None,z=None):
     ''' Wrap all passed positions back into the box.'''
+    if vec is None:
+      vec = np.array([x,y,z]).T
     wrapped_vec = vec.copy()
     wrapped_vec = np.where(wrapped_vec>self.half_L,wrapped_vec-self.L,wrapped_vec)
     wrapped_vec = np.where(wrapped_vec<self.negative_half_L,wrapped_vec+self.L,wrapped_vec)

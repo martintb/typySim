@@ -60,7 +60,7 @@ class System(object):
     self.types          = np.array([],dtype=np.int)
     self.molecule_map   = np.array([],dtype=object)
     self.molecules      = list()
-    #self. compute
+    self.computes       = list()
 
     # Placeholders for worker objects to be set later. These variables have underscores
     # as their setting/getting behavior will be handled via the @property construct in 
@@ -72,6 +72,7 @@ class System(object):
 
     self.bonds = BondList()
 
+
     #Placeholders for Table objects with contain the parameters associated with bonded and
     # nonbonded interactions
     self.NonBondedTable = None
@@ -82,6 +83,14 @@ class System(object):
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
+  @property
+  def positions(self):
+    return np.array([self.x,self.y,self.z],dtype=np.float).T
+  @positions.setter
+  def positions(self,pos):
+    self.x = pos[:,0]
+    self.y = pos[:,1]
+    self.z = pos[:,2]
   @property
   def engine(self):
     return self._engine
@@ -112,8 +121,19 @@ class System(object):
             function. The molecules can use this dictionary to update their indices.
         
     '''
-    for mol in self.molecules:
-      mol.reset(index_mapping)
+    remove_list = []
+    for i,mol in enumerate(self.molecules):
+      keep_molecule = mol.reset(index_mapping)
+      if not keep_molecule:
+        remove_list.append(mol)
+
+    for mol in remove_list:
+      self.remove_molecule(mol,keep_beads=False)
+  def add_bead(self, x,y,z,type, bonds=None):
+    '''
+    Wrapper for the case of adding a single bead
+    '''
+    return self.add_beads([x],[y],[z],types=[type],bonds=bonds)
   def add_beads(self, x,y,z,types, bonds=None):
     '''
     Primary method for adding new beads to the :class:`System`. Note that this method does
@@ -163,6 +183,11 @@ class System(object):
       for i,j in bonds:
         self.bonds.add(i,j,self.nbeads)
 
+    #update the neighbor_list
+    if self.neighbor_list is not None:
+      for ix,iy,iz in zip(x,y,z):
+        self.neighbor_list.insert_bead(-1,ix,iy,iz)
+
     #We'll return a list of the new indices that we've just added to the system
     #This way the user can immediately act on these added beads e.g. set their molecule
     new_indices = range(self.nbeads,self.nbeads+new_nbeads)
@@ -204,6 +229,16 @@ class System(object):
 
     self.bonds.shrink(indices)
     self.bonds.remap(old2new)
+
+    #update the neighbor_list
+    if self.neighbor_list is not None:
+      # If the neighborlist was resized as we were removing the beads from the cells
+      # we would need to conditionally map the indices as we were removing beads. By
+      # making it a two step process we remove the beads from the linked-list chains,
+      # and then go about resizing the list so that it matches the system. 
+      for ix in indices:
+        self.neighbor_list.remove_bead(ix)
+      self.neighbor_list.shrink(indices)
 
     return {'old2new':old2new,'new2old':new2old,'n2o':new2old,'o2n':old2new}
   def add_molecule(self,molecule,**kwargs):
@@ -258,7 +293,7 @@ class System(object):
     
     if molecule is not None:
       for i,mol in enumerate(self.molecules):
-        if id(mol)==id(molecule):
+        if mol is molecule:
           index = i
           break
 
@@ -267,9 +302,23 @@ class System(object):
 
     removed_mol = self.molecules.pop(index)
 
+
     if remove_beads is True:
       index_mapping = self.remove_beads(removed_mol.indices)
       self.reset_all_molecules(index_mapping['old2new'])
+    else:
+      for i in range(self.nbeads):
+        if self.molecule_map[i] is removed_mol:
+          self.molecule_map[i] = self.DummyMolecule
     return removed_mol
+  def get_compute(self,name):
+    for compute in self.computes:
+      if compute.name==name:
+        return compute
+    raise ValueError('Could not find a compute with name {}'.format(name))
+  def add_compute(self,compute):
+    self.computes.append(compute)
+
+
     
 

@@ -139,7 +139,7 @@ cdef class CellList:
     self.top = np.full(self.ncells,-1, dtype=intType)
     self.neigh = np.full(self.nbeads,-1, dtype=intType)
     self.bead_cells = np.full(self.nbeads,-1, dtype=intType)
-  def expand_nlist(self,num):
+  def expand(self,num):
     '''
     Expand the neighborlist by :param num:, keeping the current contents in place
     '''
@@ -147,6 +147,14 @@ cdef class CellList:
     self.neigh = np.append(self.neigh,[-1]*num)
     self.bead_cells = np.append(self.bead_cells,[-1]*num)
     self.nbeads+=num
+  def shrink(self,indices):
+    '''
+    Shrink the neighborlist by removing :param indices:,
+    '''
+    self.logger.debug('==> Resizing CellList by removing {}'.format(indices))
+    self.neigh = np.delete(self.neigh,indices)
+    self.bead_cells = np.delete(self.bead_cells,indices)
+    self.nbeads -= len(indices)
   def get_nlist(self):
     '''
     Pass back all neighbor_list information to user as a dictionary.
@@ -197,7 +205,7 @@ cdef class CellList:
       zz = z[beadNo]
       self.insert_bead(beadNo,xx,yy,zz)
     self._ready=True
-  cpdef void insert_bead(self,long beadNo, double x,double y,double z):
+  cpdef void insert_bead(self,long beadNo, double x,double y,double z) except *:
     '''
     Insert bead into neighbor list. If neccessary, resizes the nlists.
 
@@ -213,7 +221,7 @@ cdef class CellList:
       beadNo = self.nbeads
 
     if beadNo==self.nbeads:
-      self.expand_nlist(1)
+      self.expand(1)
     elif beadNo>self.nbeads:
       raise ValueError('To append new bead to list, beadNo must be equal to nbeads')
 
@@ -242,7 +250,7 @@ cdef class CellList:
           #thisNeighNo=-1 #break loop
         else:
           thisNeighNo = nextNeighNo
-  cpdef void remove_bead(self,long beadNo):
+  cpdef void remove_bead(self,long beadNo) except *:
     '''
     Removes a bead's location in the linked neighbor list
     '''
@@ -271,7 +279,7 @@ cdef class CellList:
         else:
           thisNeighNo = nextNeighNo
     self.neigh[beadNo] = -1 
-  cpdef void update_bead(self,long beadNo, double x,double y,double z):
+  cpdef void update_bead(self,long beadNo, double x,double y,double z) except *:
     '''
     Updates a bead's location in the cell list. 
     '''
@@ -280,7 +288,7 @@ cdef class CellList:
 
     # add new location to list 
     self.insert_bead(beadNo,x,y,z)
-  cpdef long pos2idex(self,double x, double dx, double bx):
+  cpdef long pos2idex(self,double x, double dx, double bx) except *:
     '''
     Convert coordinate to cell index
     '''
@@ -292,7 +300,7 @@ cdef class CellList:
       shift =0
     idex = (long) (x+shift)/(dx)
     return idex
-  cpdef long idex2cell(self,long ix,long iy,long iz):
+  cpdef long idex2cell(self,long ix,long iy,long iz) except *:
     '''
     Convert cell index triplet to cell number
     '''
@@ -301,7 +309,7 @@ cdef class CellList:
     cdef long n2d = self.ncells_2d
     cellno = (long) (ix + iy*n1d + iz*n2d)
     return cellno
-  cpdef void cell2idex(self,long cell_number,long[:] ixyz):
+  cpdef void cell2idex(self,long cell_number,long[:] ixyz) except *:
     '''
     Convert cell number to cell index triplet
     '''
@@ -310,7 +318,7 @@ cdef class CellList:
     ixyz[2] = (long) (cell_number/n2d)
     ixyz[1] = (long) (cell_number- ixyz[2]*n2d)/n1d
     ixyz[0] = (long) (cell_number - ixyz[1]*n1d -ixyz[2]*n2d)
-  cpdef void get_cell_neighbors(self,long cell_number,long[:] cell_neighs):
+  cpdef void get_cell_neighbors(self,long cell_number,long[:] cell_neighs) except *:
     '''
     Get the cell numbers of the neighbors of a particular cell
     '''

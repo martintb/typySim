@@ -8,6 +8,10 @@ class DummyMolecule(object):
     self.types     = None
     self.bonds     = None
     self.snapshot  = None
+  def __repr__(self):
+    return "<{}>".format(self.name)
+  def __str__(self):
+    return "<{}>".format(self.name)
   def build(self):
     raise warning.warn('==> molecule.build() was called on DummyMolecule...')
   def check_indices(self):
@@ -28,3 +32,10 @@ class DummyMolecule(object):
   def detach(self,indices):
     import pdb; pdb.set_trace()
     raise warning.warn('==> molecule.detach() was called on DummyMolecule...')
+  def isDummy(self):
+    '''Check identity against global DummyMolecule sentinel.'''
+    return True
+    # if self is (self.system.DummyMolecule):
+    #   return True
+    # else:
+    #   return False

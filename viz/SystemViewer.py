@@ -69,7 +69,7 @@ class SystemViewer(object):
     polyData.GetPointData().SetScalars(scalars)
     polyData.Allocate()
 
-    bondList = [[i,j] for i,bonds in enumerate(self.system.bonds) for j in bonds]
+    bondList = [[i,j] for i,bonds in enumerate(self.system.bonds) for j in bonds if j!=-1]
     if bondList:
       bondList =  np.sort(bondList,axis=1)
       temp  = bondList.view(np.dtype((np.void, bondList.dtype.itemsize * bondList.shape[1])))
@@ -114,7 +114,8 @@ class SystemViewer(object):
     polyData.GetPointData().SetScalars(scalars)
     polyData.Allocate()
 
-    bondList = [[i,j] for i,bonds in enumerate(self.system.bonds) for j in bonds]
+
+    bondList = [[i,j] for i,bonds in enumerate(self.system.bonds) for j in bonds if j!=-1]
     if bondList:
       bondList =  np.sort(bondList,axis=1)
       temp  = bondList.view(np.dtype((np.void, bondList.dtype.itemsize * bondList.shape[1])))
@@ -171,7 +172,11 @@ class SystemViewer(object):
     scalars= vtk.vtkUnsignedCharArray()
     scalars.SetNumberOfComponents(3)
     types = mol.types.compressed()
-    pos = mol.positions.compressed().reshape(-1,3)
+    # pos = mol.positions.compressed().reshape(-1,3)
+    x = mol.x.compressed()
+    y = mol.y.compressed()
+    z = mol.z.compressed()
+    pos = np.array([x,y,z]).T
     for t,p in zip(types,pos):
       points.InsertNextPoint(p)
       scalars.InsertNextTuple3(*colormap[t])

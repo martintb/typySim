@@ -1,2 +1,2 @@
 from MonteCarlo import MonteCarlo
-from RandomWalkGrowthMove import RandomWalkGrowthMove
+from EndGrowthMove import EndGrowthMove

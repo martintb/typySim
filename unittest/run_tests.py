@@ -6,6 +6,7 @@ if __name__ == '__main__':
   from System_TestCase import System_TestCase
   from Molecule_TestCase import Molecule_TestCase
   from NonBondedPotentialEnergy_TestCase import NonBondedPotentialEnergy_TestCase
+  from BondedPotentialEnergy_TestCase import BondedPotentialEnergy_TestCase
 
   suite_list = []
   suite_list.append(unittest.TestLoader().loadTestsFromTestCase(CellList_TestCase))
@@ -13,5 +14,6 @@ if __name__ == '__main__':
   suite_list.append(unittest.TestLoader().loadTestsFromTestCase(System_TestCase))
   suite_list.append(unittest.TestLoader().loadTestsFromTestCase(Molecule_TestCase))
   suite_list.append(unittest.TestLoader().loadTestsFromTestCase(NonBondedPotentialEnergy_TestCase))
+  suite_list.append(unittest.TestLoader().loadTestsFromTestCase(BondedPotentialEnergy_TestCase))
   suite = unittest.TestSuite(suite_list)
   unittest.TextTestRunner(verbosity=2).run(suite)

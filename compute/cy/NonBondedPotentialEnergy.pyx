@@ -1,9 +1,9 @@
 #!python
 # distutils: language=c++
-#cython: boundscheck=False
-#cython: wraparound=False
-#cython: cdivision=True
-#cython: nonecheck=False
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+# cython: nonecheck=False
 
 from cython.parallel import parallel,prange
 
@@ -21,12 +21,12 @@ from typySim.core.cy.CellList cimport *
 from typySim.potential.cy.AllPotentials cimport *
 
 cdef class NonBondedPotentialEnergy(Compute):
-  cdef vector[ vector[PotentialPointer] ] PotentialMatrix;
-  cdef double[:,:] epsilon_matrix 
-  cdef double[:,:] sigma_matrix  
-  cdef double[:,:] rcut_matrix  
-  cdef Box box
-  cdef CellList neighbor_list
+  # cdef vector[ vector[PotentialPointer] ] PotentialMatrix;
+  # cdef double[:,:] epsilon_matrix 
+  # cdef double[:,:] sigma_matrix  
+  # cdef double[:,:] rcut_matrix  
+  # cdef Box box
+  # cdef CellList neighbor_list
   def __init__(self,system):
     super(NonBondedPotentialEnergy,self).__init__()
     self._name = "NonBondedPotentialEnergy"

@@ -30,3 +30,5 @@ setup(
   script_name='compile.py',
   script_args=['build_ext','--inplace']
 )
+
+# sed  -i 's/# # cython/# cython/g' */cy/{*pyx,*pxd}
