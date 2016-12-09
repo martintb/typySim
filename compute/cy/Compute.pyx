@@ -13,7 +13,6 @@ cdef class Compute:
     self.frame_skip = -1
     self.block_size = -1
     self.num_blocks = -1
-    self.values = []
   @property
   def name(self):
     return self._name

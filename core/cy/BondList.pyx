@@ -28,6 +28,9 @@ cdef class BondList:
     self.nbonds = 0
   def __getitem__(self,long index):
     return self.bonds[index]
+  def reset(self,long num):
+    self.init=False
+    self.expand(num)
   def expand(self,long num):
     if self.init is False:
       self.bonds    = np.full((num,self.max_bonds_perbead),-1,dtype=intType)
@@ -65,8 +68,6 @@ cdef class BondList:
     shift : bool, *optional*
         Value to use as the shift-value if the beads are passed as :class:`int`. The default value
         is :func:`self.nbeads`.
-          
-          
      '''
     cdef long bondi,bondj
 
@@ -133,20 +134,36 @@ cdef class BondList:
     # Processing the bonds is a bit of a pain. We need to remove all
     # references to removed indices while also mapping from old to 
     # new index numbers.
-    cdef long i,j
+    cdef long i,j,old_j,new_j
+    cdef long this_j, next_j
     cdef long num_bonds = self.bonds.shape[0]
     cdef long[:] blist 
+    cdef long inf = int(1e9)
 
     for i in range(num_bonds):
       for j in range(self.max_bonds_perbead):
-        if self.bonds[i,j] != -1:
-          self.bonds[i,j] = mapping[self.bonds[i,j]]
+        old_j = self.bonds[i,j]
+        if old_j != -1:
+          self.bonds[i,j] = mapping[old_j]
+      #Move any new -1's to the end
+      for j in range(self.max_bonds_perbead-1):
+        this_j = self.bonds[i,j]
+        next_j = self.bonds[i,(j+1)]
+        if this_j == -1:
+          self.bonds[i,j]  = next_j
+          self.bonds[i,(j+1)]  = this_j
 
-      # We want to put the -1 at the end of the array. This accomplishes that by
-      # making the sort function think they are infinity (np.inf). The neat thing is 
-      # that the underlying values are unchanged so we get the desired behavior. 
-      blist = np.array(sorted(self.bonds[i],key=lambda x: np.inf if (x==-1) else x))
-      self.bonds[i][:] = blist 
+
+
+      # for j in range(self.max_bonds_perbead):
+      #   if self.bonds[i,j] != -1:
+      #     self.bonds[i,j] = mapping[self.bonds[i,j]]
+
+      # # We want to put the -1 at the end of the array. This accomplishes that by
+      # # making the sort function think they are infinity (np.inf). The neat thing is 
+      # # that the underlying values are unchanged so we get the desired behavior. 
+      # blist = np.array(sorted(self.bonds[i],key=lambda x: np.inf if (x==-1) else x))
+      # self.bonds[i][:] = blist 
   def connected(self):
     cdef long num_bonds = self.bonds.shape[0]
     cdef object lil = lil_matrix((num_bonds,num_bonds))

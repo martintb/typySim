@@ -55,6 +55,5 @@ cdef class TotalPotentialEnergy(Compute):
     else:
       U_NBPE = self.NBPE.calc(x,y,z,types)
 
-    self.values.append([U_NBPE,U_BPE])
     return sum([U_NBPE,U_BPE])
      

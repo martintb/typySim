@@ -6,7 +6,7 @@ cdef class CellList(object):
   cdef object logger
   cdef bint central_origin
   cdef long nx,ny,nz,
-  cdef double dx,dy,dz,bx,by,bz
+  cdef public double dx,dy,dz,bx,by,bz
   cdef long ncells,ncells_1d,ncells_2d,ncells_3d
   cdef long nbeads
   cdef long[:] top
@@ -16,9 +16,9 @@ cdef class CellList(object):
   cpdef void insert_bead(self,long beadNo, double x,double y,double z) except *
   cpdef void remove_bead(self,long beadNo) except *
   cpdef void update_bead(self,long beadNo, double x,double y,double z) except *
-  cpdef long pos2idex(self,double x, double dx, double bx) except *
-  cpdef long idex2cell(self,long ix,long iy,long iz) except *
-  cpdef void cell2idex(self,long cell_number,long[:] ixyz) except *
+  cdef long pos2idex(self,double x, double dx, double bx) nogil
+  cdef long idex2cell(self,long ix,long iy,long iz) nogil
+  cdef void cell2idex(self,long cell_number,long[:] ixyz) 
   cpdef void get_cell_neighbors(self,long cell_number,long[:] cell_neighs) except *
     
 

@@ -1,5 +1,5 @@
 import vtk
-import pdb as pdb; st = pdb.set_trace
+import ipdb as pdb; st = pdb.set_trace
 import numpy as np
 
 colormap ={}
@@ -69,7 +69,8 @@ class SystemViewer(object):
     polyData.GetPointData().SetScalars(scalars)
     polyData.Allocate()
 
-    bondList = [[i,j] for i,bonds in enumerate(self.system.bonds) for j in bonds if j!=-1]
+    bondArray = np.array(self.system.bonds.bonds)
+    bondList = [[i,j] for i,jlist in enumerate(bondArray) for j in jlist if j!=-1]
     if bondList:
       bondList =  np.sort(bondList,axis=1)
       temp  = bondList.view(np.dtype((np.void, bondList.dtype.itemsize * bondList.shape[1])))

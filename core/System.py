@@ -61,6 +61,13 @@ class System(object):
     self.molecule_map   = np.array([],dtype=object)
     self.molecules      = list()
     self.computes       = list()
+    self.bonds = BondList()
+
+    self.trial_x      = None
+    self.trial_y      = None
+    self.trial_z      = None
+    self.trial_types  = None
+    self.trial_bond_pairlist  = None
 
     # Placeholders for worker objects to be set later. These variables have underscores
     # as their setting/getting behavior will be handled via the @property construct in 
@@ -69,8 +76,6 @@ class System(object):
     self._box = None 
     self._engine = None
     self.neighbor_list = None
-
-    self.bonds = BondList()
 
 
     #Placeholders for Table objects with contain the parameters associated with bonded and
@@ -193,6 +198,7 @@ class System(object):
     new_indices = range(self.nbeads,self.nbeads+new_nbeads)
     self.nbeads += new_nbeads
     return new_indices
+  # @profile
   def remove_beads(self, indices):
     '''
     Primary method for removing beads to the :class:`System`. Note that this method

@@ -288,7 +288,7 @@ cdef class CellList:
 
     # add new location to list 
     self.insert_bead(beadNo,x,y,z)
-  cpdef long pos2idex(self,double x, double dx, double bx) except *:
+  cdef long pos2idex(self,double x, double dx, double bx) nogil:
     '''
     Convert coordinate to cell index
     '''
@@ -298,18 +298,18 @@ cdef class CellList:
       shift = bx/2.0
     else:
       shift =0
-    idex = (long) (x+shift)/(dx)
+    idex = <long> ((x+shift)/(dx))
     return idex
-  cpdef long idex2cell(self,long ix,long iy,long iz) except *:
+  cdef long idex2cell(self,long ix,long iy,long iz) nogil:
     '''
     Convert cell index triplet to cell number
     '''
     cdef long cellno
     cdef long n1d = self.ncells_1d
     cdef long n2d = self.ncells_2d
-    cellno = (long) (ix + iy*n1d + iz*n2d)
+    cellno = <long>(ix + iy*n1d + iz*n2d)
     return cellno
-  cpdef void cell2idex(self,long cell_number,long[:] ixyz) except *:
+  cdef void cell2idex(self,long cell_number,long[:] ixyz):
     '''
     Convert cell number to cell index triplet
     '''

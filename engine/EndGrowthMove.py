@@ -64,8 +64,6 @@ class EndGrowthMove(MonteCarloMove):
       #add new molecule to system
       self.system.add_molecule(NewChainSegment,**molData)
 
-    #bonds between the surface/chain and new bead need to be added
-    self.system.bonds.add(new_index,growth_index,0)
 
 
     Unew = self.engine.TPE.compute(ignore_neighbor_list=True)
@@ -80,6 +78,9 @@ class EndGrowthMove(MonteCarloMove):
         accept=False
 
     if not accept:
+      #bonds between the surface/chain and new bead need to be added
+      # self.system.bonds.remove(new_index,growth_index,0)
+
       #Ugh...we need to put the system back the way it was
       if (growth_type == self.chain_end_type): # bead was attached to end of chain
         mapping = self.system.remove_beads([new_index]) 

@@ -42,3 +42,23 @@ cdef inline double periodic_boundary_wrap(double dr, double BOXL):
   elif dr<-B2:
     dr=dr+BOXL
   return dr
+
+cdef long binary_search(long value, long[:] array) nogil:
+  ''' 
+  Returns index of value in array if value is found
+  Return -1 is value is not found
+  Warning: Array must be pre-sorted for this to work! 
+  '''
+  cdef long lo = 0
+  cdef long hi = array.shape[0]-1
+  cdef long mid
+  while lo<=hi:
+    mid = lo + (hi-lo)/2
+    if array[mid] == value:
+      return mid
+    elif array[mid] < value:
+      lo = mid + 1
+    else:
+      hi = mid - 1
+  #value not found!
+  return -1
