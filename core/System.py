@@ -63,10 +63,10 @@ class System(object):
     self.computes       = list()
     self.bonds = BondList()
 
-    self.trial_x      = None
-    self.trial_y      = None
-    self.trial_z      = None
-    self.trial_types  = None
+    self._trial_x      = None
+    self._trial_y      = None
+    self._trial_z      = None
+    self._trial_types  = None
     self.trial_bond_pairlist  = None
 
     # Placeholders for worker objects to be set later. These variables have underscores
@@ -88,6 +88,30 @@ class System(object):
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
+  @property
+  def trial_x(self):
+    return self._trial_x
+  @trial_x.setter
+  def trial_x(self,values):
+    self._trial_x = np.array(values,dtype=np.float)
+  @property
+  def trial_y(self):
+    return self._trial_y
+  @trial_y.setter
+  def trial_y(self,values):
+    self._trial_y = np.array(values,dtype=np.float)
+  @property
+  def trial_z(self):
+    return self._trial_z
+  @trial_z.setter
+  def trial_z(self,values):
+    self._trial_z = np.array(values,dtype=np.float)
+  @property
+  def trial_types(self):
+    return self._trial_types
+  @trial_types.setter
+  def trial_types(self,values):
+    self._trial_types = np.array(values,dtype=np.int)
   @property
   def positions(self):
     return np.array([self.x,self.y,self.z],dtype=np.float).T
@@ -139,7 +163,7 @@ class System(object):
     Wrapper for the case of adding a single bead
     '''
     return self.add_beads([x],[y],[z],types=[type],bonds=bonds)
-  def add_beads(self, x,y,z,types, bonds=None):
+  def add_beads(self, x,y,z,types, bonds=None,bond_shift=True):
     '''
     Primary method for adding new beads to the :class:`System`. Note that this method does
     not modify the molecule list or the molecules contained therein!
@@ -185,8 +209,12 @@ class System(object):
 
     self.bonds.expand(new_nbeads)
     if bonds is not None:
+      if bond_shift == True:
+        bond_shift_value = self.nbeads
+      else:
+        bond_shift_value = 0
       for i,j in bonds:
-        self.bonds.add(i,j,self.nbeads)
+        self.bonds.add(i,j,bond_shift_value)
 
     #update the neighbor_list
     if self.neighbor_list is not None:

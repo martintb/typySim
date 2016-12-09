@@ -52,7 +52,7 @@ cdef class NonBondedPotentialEnergy(Compute):
         else:
           raise ValueError('Potential type not recognized!')
       self.PotentialMatrix.push_back(temp)
-  def compute(self,partial_indices=None,trial_move=False,ignore_neighbor_list=False):
+  def compute(self,partial_indices=None,trial_move=False,ignore_neighbor_list=False,**kwargs):
     cdef double U = -1.2345
     cdef double[:] x,trial_x
     cdef double[:] y,trial_y

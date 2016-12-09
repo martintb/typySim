@@ -45,13 +45,15 @@ class MonteCarlo(object):
 
     for i in range(num_attempts):
       move = random.choice(self.moveList)
-      success = move.attempt()
+      success,Unew = move.attempt()
 
       self.rates['total_attempted'] += 1
       if success:
         self.rates['total_accepted'] += 1
         self.rates[move.name] += 1
-        self.TPE_list.append(sum(self.TPE.values[-1]))
+        self.TPE_list.append(Unew)
+      else:
+        self.TPE_list.append(self.TPE_list[-1])
       if (i%log_rate)==0:
         accepted = self.rates['total_accepted']
         attempted = self.rates['total_attempted']

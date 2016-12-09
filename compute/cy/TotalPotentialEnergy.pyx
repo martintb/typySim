@@ -31,29 +31,14 @@ cdef class TotalPotentialEnergy(Compute):
     self.system = system
     self.BPE = BondedPotentialEnergy(system)
     self.NBPE = NonBondedPotentialEnergy(system)
-  def compute(self,ignore_neighbor_list=False):
+  def compute(self,**kwargs):
     cdef double U_BPE = -1.2345
     cdef double U_NBPE = -1.2345
-    cdef double[:] x 
-    cdef double[:] y
-    cdef double[:] z
-    cdef long[:] types
-    cdef object bonds
 
-    x     = self.system.x
-    y     = self.system.y
-    z     = self.system.z
-    types = self.system.types
-    bonds = self.system.bonds.bonds
 
-    U_BPE = self.BPE.calc(x,y,z,types,bonds)
+    U_BPE = self.BPE.compute(**kwargs)
+    U_NBPE = self.NBPE.compute(**kwargs)
 
-    if (not ignore_neighbor_list) and (self.system.box.neighbor_list is not None):
-      if not self.system.box.neighbor_list.ready:
-        raise ValueError('The neighbor list is reporting that it is not ready!')
-      U_NBPE = self.NBPE.calc_nlist(x,y,z,types)
-    else:
-      U_NBPE = self.NBPE.calc(x,y,z,types)
 
     return sum([U_NBPE,U_BPE])
      

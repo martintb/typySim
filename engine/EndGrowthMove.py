@@ -6,9 +6,9 @@ import numpy as np
 import random
 import logging
 
-# import ipdb as pdb; 
-# import os; eexit = os._exit
-# st = pdb.set_trace
+import ipdb as pdb; 
+import os; eexit = os._exit
+ist = pdb.set_trace
 
 
 class EndGrowthMove(MonteCarloMove):
@@ -40,34 +40,14 @@ class EndGrowthMove(MonteCarloMove):
     new_x,new_y,new_z = self.system.box.numpy_wrap_position(x=new_x,y=new_y,z=new_z)
     new_index = self.system.nbeads
 
-    molData = {}
-    molData['x'] = [new_x]
-    molData['y'] = [new_y]
-    molData['z'] = [new_z]
-    molData['types'] = [self.chain_end_type]
+    self.system.trial_x = [new_x]
+    self.system.trial_y = [new_y]
+    self.system.trial_z = [new_z]
+    self.system.trial_types = [self.chain_end_type]
+    self.system.trial_bond_pairlist = np.array([[growth_index,new_index]])
 
-    # add new bead to system
-    if (growth_type == self.chain_end_type): # attaching bead to end of chain
-
-      #add new bead to system
-      self.system.add_beads(**molData) 
-
-      #end of chain is no longer a growth type
-      self.system.types[growth_index] = self.chain_middle_type
-
-      #add new index to chain molecule
-      self.system.molecule_map[growth_index].add_indices([new_index])
-    else: # attaching bead to surface
-      #we need a new chain molecule to begin growing
-      NewChainSegment = molecule.ChainSegment()
-
-      #add new molecule to system
-      self.system.add_molecule(NewChainSegment,**molData)
-
-
-
-    Unew = self.engine.TPE.compute(ignore_neighbor_list=True)
-    if Unew<Uold:
+    Unew = Uold + self.engine.TPE.compute(trial_move=True)
+    if Unew<=Uold:
       accept=True
     else:
       prob = np.exp(-(Unew-Uold))
@@ -77,17 +57,32 @@ class EndGrowthMove(MonteCarloMove):
       else:
         accept=False
 
-    if not accept:
-      #bonds between the surface/chain and new bead need to be added
-      # self.system.bonds.remove(new_index,growth_index,0)
+    if accept:
+      molData = {}
+      molData['x'] = self.system.trial_x
+      molData['y'] = self.system.trial_y
+      molData['z'] = self.system.trial_z
+      molData['types'] = self.system.trial_types
+      molData['bonds'] = self.system.trial_bond_pairlist
+      # add new bead to system
+      if (growth_type == self.chain_end_type): # attaching bead to end of chain
 
-      #Ugh...we need to put the system back the way it was
-      if (growth_type == self.chain_end_type): # bead was attached to end of chain
-        mapping = self.system.remove_beads([new_index]) 
-      else: # bead was attached to surface
-        self.system.remove_molecule(molecule=NewChainSegment,remove_beads=True)
+        #add new bead to system
+        self.system.add_beads(bond_shift=False,**molData) 
 
-    return accept
+        #end of chain is no longer a growth type
+        self.system.types[growth_index] = self.chain_middle_type
+
+        #add new index to chain molecule
+        self.system.molecule_map[growth_index].add_indices([new_index])
+      else: # attaching bead to surface
+        #we need a new chain molecule to begin growing
+        NewChainSegment = molecule.ChainSegment()
+
+        #add new molecule to system
+        self.system.add_molecule(NewChainSegment,bond_shift=False,**molData)
+
+    return accept,Unew
 
 
 
