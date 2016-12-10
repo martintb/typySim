@@ -22,6 +22,7 @@ class EndGrowthMove(MonteCarloMove):
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
   @MonteCarloMove.counter
+  @profile
   def attempt(self):
     Uold = self.engine.TPE_list[-1]
 
@@ -40,11 +41,9 @@ class EndGrowthMove(MonteCarloMove):
     new_x,new_y,new_z = self.system.box.numpy_wrap_position(x=new_x,y=new_y,z=new_z)
     new_index = self.system.nbeads
 
-    self.system.trial_x = [new_x]
-    self.system.trial_y = [new_y]
-    self.system.trial_z = [new_z]
-    self.system.trial_types = [self.chain_end_type]
-    self.system.trial_bond_pairlist = np.array([[growth_index,new_index]])
+    new_types = self.chain_end_type
+    new_bonds = [[growth_index,new_index]]
+    self.system.set_trial_move(x=new_x,y=new_y,z=new_z,types=new_types,bonds=new_bonds)
 
     Unew = Uold + self.engine.TPE.compute(trial_move=True)
     if Unew<=Uold:
@@ -58,29 +57,19 @@ class EndGrowthMove(MonteCarloMove):
         accept=False
 
     if accept:
-      molData = {}
-      molData['x'] = self.system.trial_x
-      molData['y'] = self.system.trial_y
-      molData['z'] = self.system.trial_z
-      molData['types'] = self.system.trial_types
-      molData['bonds'] = self.system.trial_bond_pairlist
-      # add new bead to system
+      self.system.append_trial_move()
+      new_index = [new_index]
       if (growth_type == self.chain_end_type): # attaching bead to end of chain
-
-        #add new bead to system
-        self.system.add_beads(bond_shift=False,**molData) 
-
         #end of chain is no longer a growth type
         self.system.types[growth_index] = self.chain_middle_type
 
         #add new index to chain molecule
-        self.system.molecule_map[growth_index].add_indices([new_index])
+        self.system.molecule_map[growth_index].add_indices(new_index)
       else: # attaching bead to surface
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
-
-        #add new molecule to system
-        self.system.add_molecule(NewChainSegment,bond_shift=False,**molData)
+        NewChainSegment.indices = new_index
+        self.system.add_molecule(NewChainSegment)
 
     return accept,Unew
 

@@ -63,11 +63,12 @@ class System(object):
     self.computes       = list()
     self.bonds = BondList()
 
-    self._trial_x      = None
-    self._trial_y      = None
-    self._trial_z      = None
-    self._trial_types  = None
+    self.trial_x      = None
+    self.trial_y      = None
+    self.trial_z      = None
+    self.trial_types  = None
     self.trial_bond_pairlist  = None
+    self.nbeads_trial = 0
 
     # Placeholders for worker objects to be set later. These variables have underscores
     # as their setting/getting behavior will be handled via the @property construct in 
@@ -88,30 +89,35 @@ class System(object):
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
-  @property
-  def trial_x(self):
-    return self._trial_x
-  @trial_x.setter
-  def trial_x(self,values):
-    self._trial_x = np.array(values,dtype=np.float)
-  @property
-  def trial_y(self):
-    return self._trial_y
-  @trial_y.setter
-  def trial_y(self,values):
-    self._trial_y = np.array(values,dtype=np.float)
-  @property
-  def trial_z(self):
-    return self._trial_z
-  @trial_z.setter
-  def trial_z(self,values):
-    self._trial_z = np.array(values,dtype=np.float)
-  @property
-  def trial_types(self):
-    return self._trial_types
-  @trial_types.setter
-  def trial_types(self,values):
-    self._trial_types = np.array(values,dtype=np.int)
+  def set_trial_move(self,x,y,z,types,bonds):
+    try:
+      nbeads = len(x)
+    except TypeError:
+      nbeads = 1
+      x = [x]
+      y = [y]
+      z = [z]
+      types = [types]
+
+    if self.nbeads_trial == nbeads:
+      np.copyto(self.trial_x,x)
+      np.copyto(self.trial_y,y)
+      np.copyto(self.trial_z,z)
+      np.copyto(self.trial_types,types)
+      self.trial_bond_pairlist = np.array(bonds)
+    else:
+      self.nbeads_trial = nbeads
+      self.trial_x = np.array(x)
+      self.trial_y = np.array(y)
+      self.trial_z = np.array(z)
+      self.trial_types = np.array(types)
+      self.trial_bond_pairlist = np.array(bonds)
+  def append_trial_move(self):
+    return self.add_beads(x=self.trial_x,
+                          y=self.trial_y,
+                          z=self.trial_z,
+                          types=self.trial_types,
+                          bonds=self.trial_bond_pairlist)
   @property
   def positions(self):
     return np.array([self.x,self.y,self.z],dtype=np.float).T
@@ -158,12 +164,7 @@ class System(object):
 
     for mol in remove_list:
       self.remove_molecule(mol,keep_beads=False)
-  def add_bead(self, x,y,z,type, bonds=None):
-    '''
-    Wrapper for the case of adding a single bead
-    '''
-    return self.add_beads([x],[y],[z],types=[type],bonds=bonds)
-  def add_beads(self, x,y,z,types, bonds=None,bond_shift=True):
+  def add_beads(self, x,y,z,types, bonds=None,bond_shift=False):
     '''
     Primary method for adding new beads to the :class:`System`. Note that this method does
     not modify the molecule list or the molecules contained therein!
@@ -297,9 +298,12 @@ class System(object):
     self.molecule_map[molecule.indices] = molecule
     self.molecules.append(molecule)
 
-    # Since new beads have been (possibly) added, it's necessary 
-    # to recreate all of the masked arrays of all of the molecules
-    self.reset_all_molecules()
+    # # Since new beads have been (possibly) added, it's necessary 
+    # # to recreate all of the masked arrays of all of the molecules
+    # if kwargs:
+    #   self.reset_all_molecules()
+    # else:
+    self.molecules[-1].reset()
   def remove_molecule(self,molecule=None,index=None,remove_beads=False):
     ''' 
     Removes a reference molecule, and possible the beads that it references,
