@@ -1,7 +1,8 @@
 import numpy as np
 from typySim.molecule import DummyMolecule
+from typySim.core import Selection
 from typySim.core import BondList
-from  typySim.core import PairTable
+from typySim.core import PairTable
 
 class System(object):
   ''' 
@@ -77,6 +78,7 @@ class System(object):
     self._box = None 
     self._engine = None
     self.neighbor_list = None
+    self.select = Selection(self)
 
 
     #Placeholders for Table objects with contain the parameters associated with bonded and

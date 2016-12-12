@@ -1,6 +1,5 @@
 from MonteCarloMove import *
 from typySim import molecule
-from typySim.core import Selection
 from typySim.geometry import linalg
 import numpy as np
 import random
@@ -22,11 +21,11 @@ class EndGrowthMove(MonteCarloMove):
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
   @MonteCarloMove.counter
+  @profile
   def attempt(self):
     Uold = self.engine.TPE_list[-1]
 
-    type_selection = Selection(self.system.types,self.growth_types)
-    growth_index = type_selection.random_choice()
+    growth_index = self.system.select.random_index(types=self.growth_types)
     growth_x = self.system.x[growth_index]
     growth_y = self.system.y[growth_index]
     growth_z = self.system.z[growth_index]
