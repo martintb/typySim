@@ -218,7 +218,7 @@ class System(object):
         self.bonds.add(i,j,bond_shift_value)
 
     #update the neighbor_list
-    if self.neighbor_list is not None:
+    if self.neighbor_list is not None and self.neighbor_list.ready:
       for ix,iy,iz in zip(x,y,z):
         self.neighbor_list.insert_bead(-1,ix,iy,iz)
 

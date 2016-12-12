@@ -22,7 +22,6 @@ class EndGrowthMove(MonteCarloMove):
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
   @MonteCarloMove.counter
-  @profile
   def attempt(self):
     Uold = self.engine.TPE_list[-1]
 
