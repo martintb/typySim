@@ -174,4 +174,21 @@ cdef class BondList:
         if (bondj!=-1) and (bondi<bondj):
           lil[bondi,bondj] = 1.0
     return connected_components(lil,directed=False)
+  def get_pairlist(self,index=None):
+    cdef list pairlist = []
+    cdef long beadi,beadj,bondj,
+    if index is None:
+      for beadi in range(self.nbonds):
+        for bondj in range(self.max_bonds_perbead):
+          beadj = self.bonds[beadi,bondj]
+          if beadj!=-1 and beadj>beadi:
+            pairlist.append([beadi,beadj])
+    else:
+      beadi = index
+      for bondj in range(self.max_bonds_perbead):
+        beadj = self.bonds[beadi,bondj]
+        if beadj!=-1:
+          pairlist.append([beadi,beadj])
+    return pairlist
+
 

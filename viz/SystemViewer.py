@@ -31,6 +31,7 @@ class SystemViewer(object):
     self.camera = vtk.vtkCamera()
     self.camera.SetPosition(125,0,0)
     self.camera.SetFocalPoint(0,0,0)
+    self.camera.Roll(90)
     self.ren.SetActiveCamera(self.camera)
 
     self.box = None

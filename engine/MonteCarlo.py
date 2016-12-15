@@ -1,5 +1,14 @@
 import random
 import logging
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 class MonteCarlo(object):
   '''
@@ -51,20 +60,26 @@ class MonteCarlo(object):
 
     for i in range(num_attempts):
       move = random.choice(self.moveList)
-      success,Unew = move.attempt()
+      success,mc_move_data = move.attempt()
 
       self.rates['total_attempted'] += 1
       if success:
         self.rates['total_accepted'] += 1
         self.rates[move.name] += 1
-        self.TPE_list.append(Unew)
+        self.TPE_list.append(mc_move_data['U'])
       else:
         self.TPE_list.append(self.TPE_list[-1])
       if (i%log_rate)==0:
         accepted = self.rates['total_accepted']
         attempted = self.rates['total_attempted']
         rate = accepted/float(attempted)
-        logStr  = 'Step {}/{}, rate: {:4.3f} Unew: {}'.format(i,num_attempts-1,rate,float(Unew))
+        if success:
+          color = bcolors.OKGREEN
+        else:
+          color = bcolors.FAIL
+        logStr  = color 
+        logStr +='Step {}/{}, rate: {:4.3f} U: {}'.format(i,num_attempts-1,rate,mc_move_data['string']) + bcolors.ENDC
+        logStr += bcolors.ENDC
         self.logger.info(logStr)
 
       if (viz is not None) and success and (i%log_rate)==0:
