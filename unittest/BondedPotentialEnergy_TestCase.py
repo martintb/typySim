@@ -75,7 +75,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.box.neighbor_list.build_nlist(xarray,yarray,zarray,True)
 
     PE = BondedPotentialEnergy(system)
-    U1 = PE.compute()
+    U1 = sum(PE.compute())
 
     return U0,U1
   def test_harmonic(self):
@@ -149,7 +149,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.box.neighbor_list.build_nlist(xarray,yarray,zarray,True)
 
     PE = BondedPotentialEnergy(system)
-    U1 = PE.compute(partial_indices = partial_indices)
+    U1 = sum(PE.compute(partial_indices = partial_indices))
 
     self.assertAlmostEqual(U0,U1,delta=0.001)
   def test_partial2(self):
@@ -203,7 +203,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.box.neighbor_list.build_nlist(xarray,yarray,zarray,True)
 
     PE = BondedPotentialEnergy(system)
-    U1 = PE.compute(partial_indices = partial_indices)
+    U1 = sum(PE.compute(partial_indices = partial_indices))
 
     self.assertAlmostEqual(U0,U1,delta=0.001)
   def test_trial_move(self):
@@ -257,18 +257,18 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.BondedTable = BPT
     system.NonBondedTable = NBPT
 
-    system.trial_x = np.array(trial_x)
-    system.trial_y = np.array(trial_y)
-    system.trial_z = np.array(trial_z)
-    system.trial_types = np.array(trial_t)
+    system.trial_x = np.array([trial_x])
+    system.trial_y = np.array([trial_y])
+    system.trial_z = np.array([trial_z])
+    system.trial_types = np.array([trial_t])
     system.trial_bond_pairlist = np.array(trial_bonds)
 
     x,y,z = system.box.numpy_wrap_position(x=ref_x,y=ref_y,z=ref_z).T
     U0 = self.calc_all_potential(ref_bonds,ref_x,ref_y,ref_z,ref_t,lx,ly,lz,BPT)
 
     PE = BondedPotentialEnergy(system)
-    U1 = PE.compute()
-    U2 = PE.compute(trial_move=True)
+    U1 = sum(PE.compute())
+    U2 = sum(PE.compute(trial_move=True))
 
     self.assertAlmostEqual(U0,U1+U2,delta=0.001)
 

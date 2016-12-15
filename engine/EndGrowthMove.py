@@ -3,7 +3,6 @@ from typySim import molecule
 from typySim.geometry import linalg
 import numpy as np
 import random
-import logging
 
 import ipdb as pdb; 
 import os; eexit = os._exit
@@ -21,7 +20,6 @@ class EndGrowthMove(MonteCarloMove):
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
   @MonteCarloMove.counter
-  @profile
   def attempt(self):
     Uold = self.engine.TPE_list[-1]
 
@@ -41,9 +39,14 @@ class EndGrowthMove(MonteCarloMove):
 
     new_types = self.chain_end_type
     new_bonds = [[growth_index,new_index]]
-    self.system.set_trial_move(x=new_x,y=new_y,z=new_z,types=new_types,bonds=new_bonds)
+    self.system.set_trial_move(
+                                x=[[new_x]],
+                                y=[[new_y]],
+                                z=[[new_z]],
+                                types=[[new_types]],
+                                bonds=new_bonds)
 
-    Unew = Uold + self.engine.TPE.compute(trial_move=True)
+    Unew = Uold + sum(self.engine.TPE.compute(trial_move=True))
     if Unew<=Uold:
       accept=True
     else:
@@ -67,6 +70,7 @@ class EndGrowthMove(MonteCarloMove):
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
         NewChainSegment.indices = new_index
+        NewChainSegment.properties['tail'] = True
         self.system.add_molecule(NewChainSegment)
 
     return accept,Unew

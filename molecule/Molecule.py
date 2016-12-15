@@ -50,6 +50,7 @@ class Molecule(object):
     self.types = None
     self.bonds = None
     self.name = 'BaseMolecule'
+    self.properties={}
   @property
   def size(self):
     return len(self._indices)

@@ -44,14 +44,16 @@ cdef class BondedPotentialEnergy(Compute):
         else:
           raise ValueError('Bond type not recognized!')
       self.PotentialMatrix.push_back(temp)
-  def compute(self,partial_indices=None,trial_move=False,**kwargs):
+  def compute(self,partial_indices=None,trial_move=False,ntrials=1,**kwargs):
     cdef double U = -1.2345
+    cdef list Ulist = []
     cdef double[:] x,trial_x
     cdef double[:] y,trial_y
     cdef double[:] z,trial_z
     cdef long[:] types,trial_types
     cdef long[:] indices
     cdef long[:,:] bonds,trial_bond_pairlist
+    cdef long trial_num
 
     #regardless we need all of the system info
     x     = self.system.x
@@ -60,18 +62,20 @@ cdef class BondedPotentialEnergy(Compute):
     types = self.system.types
 
     if trial_move:
-      trial_x = self.system.trial_x
-      trial_y = self.system.trial_y
-      trial_z = self.system.trial_z
-      trial_types = self.system.trial_types
-      trial_bond_pairlist = self.system.trial_bond_pairlist
-      if len(trial_bond_pairlist)>0:
-        U = self.compute_trial_move(
-                                        x,y,z,types,
-                                        trial_x,trial_y,trial_z,trial_types,trial_bond_pairlist
-                                       )
-      else:
-        U = 0
+      for trial_num in range(ntrials):
+        trial_x = self.system.trial_x[trial_num]
+        trial_y = self.system.trial_y[trial_num]
+        trial_z = self.system.trial_z[trial_num]
+        trial_types = self.system.trial_types[trial_num]
+        if len(self.system.trial_bond_pairlist)>0:
+          trial_bond_pairlist = self.system.trial_bond_pairlist
+          U = self.compute_trial_move(
+                                          x,y,z,types,
+                                          trial_x,trial_y,trial_z,trial_types,trial_bond_pairlist
+                                         )
+        else:
+          U = 0
+        Ulist.append(U)
     elif self.system.bonds.nbonds>0:
       bonds = self.system.bonds.bonds
       if partial_indices is not None:
@@ -79,11 +83,12 @@ cdef class BondedPotentialEnergy(Compute):
         U = self.compute_partial_system(indices,x,y,z,types,bonds)
       else:
         U = self.compute_full_system(x,y,z,types,bonds)
+      Ulist.append(U)
     else:
       #No bonds so no bond energy!
-      U = 0
+      Ulist.append(0)
 
-    return U
+    return Ulist
   cdef double compute_full_system(self, double[:] x, double[:] y, double[:] z, long[:] types, long[:,:] bonds) nogil:
     cdef double U = 0
     cdef Py_ssize_t bead_i,bead_j,bond_j

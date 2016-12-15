@@ -23,3 +23,6 @@ cdef class NonBondedPotentialEnergy(Compute):
   cdef double compute_trial_move(self, 
                                  double[:] x, double[:] y, double[:] z, long[:] types,
                                  double[:] trial_x, double[:] trial_y, double[:] trial_z, long[:] trial_types) nogil
+  cdef double compute_trial_move_with_ignored(self, long[:] indices,
+                                 double[:] x, double[:] y, double[:] z, long[:] types,
+                                 double[:] trial_x, double[:] trial_y, double[:] trial_z, long[:] trial_types) nogil

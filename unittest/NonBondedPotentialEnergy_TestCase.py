@@ -16,7 +16,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
   def hard_sphere(self,r,epsilon,sigma,rcut):
     tol = 1e-6
     if (sigma-r)>tol:
-      return 1e9
+      return 1e4
     else:
       return 0
   def lennard_jones(self,r,epsilon,sigma,rcut):
@@ -88,16 +88,16 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
 
     system.NonBondedTable = PT
     PE = NonBondedPotentialEnergy(system)
-    U1 = PE.compute()
-    U2 = PE.compute(ignore_neighbor_list=True)
+    U1 = sum(PE.compute())
+    U2 = sum(PE.compute(ignore_neighbor_list=True))
     if box_resize is None:
       return U0,U1,U2
     system.box.lx = box_resize[0]
     system.box.ly = box_resize[1]
     system.box.lz = box_resize[2]
     U3 = self.calc_all_potential(x,y,z,t,system.box.lx,system.box.ly,system.box.lz,PT)
-    U4 = PE.compute()
-    U5 = PE.compute(ignore_neighbor_list=True)
+    U4 = sum(PE.compute())
+    U5 = sum(PE.compute(ignore_neighbor_list=True))
     return U0,U1,U2,U3,U4,U5
   def test_nopbc_homog_HS_sigma10(self):
     lx = 100
@@ -230,8 +230,8 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
 
     system.NonBondedTable = PT
     PE = NonBondedPotentialEnergy(system)
-    U1 = PE.compute()
-    U2 = PE.compute(ignore_neighbor_list=True)
+    U1 = sum(PE.compute())
+    U2 = sum(PE.compute(ignore_neighbor_list=True))
     self.assertAlmostEqual(U0,U2,delta=0.01)
     self.assertAlmostEqual(U0,U1,delta=0.01)
   def test_pbc_homog_HS_sigma155_partial(self):
@@ -282,7 +282,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
 
     system.NonBondedTable = PT
     PE = NonBondedPotentialEnergy(system)
-    U1 = PE.compute(partial_indices=partial_indices)
+    U1 = sum(PE.compute(partial_indices=partial_indices))
     self.assertAlmostEqual(U0,U1,delta=0.001)
   def test_pbc_homog_HS_sigma155_trial_move(self):
     lx = 10
@@ -346,10 +346,10 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
     system.box.ly = ly
     system.box.lz = lz
 
-    system.trial_x = np.array(x2,dtype=np.float)
-    system.trial_y = np.array(y2,dtype=np.float)
-    system.trial_z = np.array(z2,dtype=np.float)
-    system.trial_types = np.array(t2)
+    system.trial_x = np.array([x2],dtype=np.float)
+    system.trial_y = np.array([y2],dtype=np.float)
+    system.trial_z = np.array([z2],dtype=np.float)
+    system.trial_types = np.array([t2])
     system.trial_bonds = []
 
     xarray = np.array(x1,dtype=np.float)
@@ -359,7 +359,7 @@ class NonBondedPotentialEnergy_TestCase(unittest.TestCase):
 
     system.NonBondedTable = PT
     PE = NonBondedPotentialEnergy(system)
-    U1 = PE.compute(trial_move=True)
+    U1 = sum(PE.compute(trial_move=True))
     self.assertAlmostEqual(U0,U1,delta=0.001)
 
 

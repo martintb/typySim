@@ -31,14 +31,18 @@ cdef class TotalPotentialEnergy(Compute):
     self.system = system
     self.BPE = BondedPotentialEnergy(system)
     self.NBPE = NonBondedPotentialEnergy(system)
-  def compute(self,**kwargs):
+  def compute(self,ntrials=1,**kwargs):
     cdef double U_BPE = -1.2345
     cdef double U_NBPE = -1.2345
+    cdef list Ulist_BPE = []
+    cdef list Ulist_NBPE = []
 
 
-    U_BPE = self.BPE.compute(**kwargs)
-    U_NBPE = self.NBPE.compute(**kwargs)
+    Ulist_NBPE = self.NBPE.compute(ntrials=ntrials,**kwargs)
+    Ulist_BPE = self.BPE.compute(ntrials=ntrials,**kwargs)
 
-
-    return sum([U_NBPE,U_BPE])
+    if ntrials == 1:
+      return Ulist_NBPE[0],Ulist_BPE[0]
+    else:
+      return Ulist_NBPE,Ulist_BPE
      

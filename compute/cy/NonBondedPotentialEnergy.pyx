@@ -52,13 +52,15 @@ cdef class NonBondedPotentialEnergy(Compute):
         else:
           raise ValueError('Potential type not recognized!')
       self.PotentialMatrix.push_back(temp)
-  def compute(self,partial_indices=None,trial_move=False,ignore_neighbor_list=False,**kwargs):
+  def compute(self,partial_indices=None,trial_move=False,ignore_neighbor_list=False,ntrials=1,**kwargs):
     cdef double U = -1.2345
+    cdef list Ulist = []
     cdef double[:] x,trial_x
     cdef double[:] y,trial_y
     cdef double[:] z,trial_z
     cdef long[:] types,trial_types
     cdef long[:] indices
+    cdef long trial_num
 
     if (trial_move or (partial_indices is not None)) and ignore_neighbor_list:
       raise ValueError('Trial Move or Partial PE calculation is only supported with a neighbor_list!')
@@ -69,25 +71,38 @@ cdef class NonBondedPotentialEnergy(Compute):
     types = self.system.types
 
     if trial_move:
-      trial_x = self.system.trial_x
-      trial_y = self.system.trial_y
-      trial_z = self.system.trial_z
-      trial_types = self.system.trial_types
-      U = self.compute_trial_move(
-                                  x,y,z,types,
-                                  trial_x,trial_y,trial_z,trial_types
-                                  )
+      for trial_num in range(ntrials):
+        trial_x = self.system.trial_x[trial_num]
+        trial_y = self.system.trial_y[trial_num]
+        trial_z = self.system.trial_z[trial_num]
+        trial_types = self.system.trial_types[trial_num]
+        if (partial_indices is not None):
+          indices = np.sort(partial_indices)
+          U = self.compute_trial_move_with_ignored(
+                                                   indices,
+                                                   x,y,z,types,
+                                                   trial_x,trial_y,trial_z,trial_types
+                                                  )
+        else:
+          U = self.compute_trial_move(
+                                      x,y,z,types,
+                                      trial_x,trial_y,trial_z,trial_types
+                                     )
+        Ulist.append(U)
     elif partial_indices is not None:
       indices = np.sort(partial_indices)
-      U = self.compute_partial_system(indices,x,y,z,types)
+      Ulist.append(self.compute_partial_system(indices,x,y,z,types))
     else:
       if (not ignore_neighbor_list) and (self.box.neighbor_list is not None):
         if not self.box.neighbor_list.ready:
           raise ValueError('The neighbor list is reporting that it is not ready!')
         U = self.compute_full_system(x,y,z,types)
+        Ulist.append(U)
       else:
         U = self.compute_full_system_no_nlist(x,y,z,types)
-    return U
+        Ulist.append(U)
+
+    return Ulist
   cdef double compute_full_system_no_nlist(self, double[:] x, double[:] y, double[:] z, long[:] types) nogil:
     cdef double U = 0
     cdef Py_ssize_t i,j
@@ -256,6 +271,79 @@ cdef class NonBondedPotentialEnergy(Compute):
           epsilon = self.epsilon_matrix[ti,tj]
           sigma   = self.sigma_matrix[ti,tj]
           U += self.PotentialMatrix[ti][tj](dist,epsilon,sigma,rcut)
+          bead_j = self.neighbor_list.neigh[bead_j]
+    return U
+  cdef double compute_trial_move_with_ignored(self, long[:] ignored,
+                                 double[:] x, double[:] y, double[:] z, long[:] types,
+                                 double[:] trial_x, double[:] trial_y, double[:] trial_z, long[:] trial_types) nogil:
+    cdef double U = 0
+    cdef Py_ssize_t bead_i,bead_j,i
+    cdef long N_trial = trial_x.shape[0]
+    cdef double dx,dy,dz,dist
+    cdef double epsilon,sigma,rcut
+    cdef long ti,tj
+    cdef long cellNo,currCell,cellNeighNo
+    cdef long ix,iy,iz
+    cdef double x1,y1,z1
+    cdef double x2,y2,z2
+
+    #intra
+    # for bead_i in range(N_trial-1):
+    for bead_i in prange(N_trial-1,nogil=True,schedule='guided'):
+      for bead_j in range(bead_i+1,N_trial):
+
+        dx = trial_x[bead_j] - trial_x[bead_i]
+        dy = trial_y[bead_j] - trial_y[bead_i]
+        dz = trial_z[bead_j] - trial_z[bead_i]
+
+        dx = self.box.wrap_dx(dx)
+        dy = self.box.wrap_dy(dy)
+        dz = self.box.wrap_dz(dz)
+
+        dist = c_sqrt(dx*dx + dy*dy + dz*dz)
+
+        ti = trial_types[bead_i]
+        tj = trial_types[bead_j]
+        rcut    = self.rcut_matrix[ti,tj]
+        epsilon = self.epsilon_matrix[ti,tj]
+        sigma   = self.sigma_matrix[ti,tj]
+        U += self.PotentialMatrix[ti][tj](dist,epsilon,sigma,rcut)
+
+    #inter
+    # for bead_i in range(N_trial):
+    for bead_i in prange(N_trial,nogil=True,schedule='guided'):
+      x1 = trial_x[bead_i]
+      y1 = trial_y[bead_i]
+      z1 = trial_z[bead_i]
+      ix = self.neighbor_list.pos2idex(x1,self.neighbor_list.dx,self.neighbor_list.bx)
+      iy = self.neighbor_list.pos2idex(y1,self.neighbor_list.dy,self.neighbor_list.by)
+      iz = self.neighbor_list.pos2idex(z1,self.neighbor_list.dz,self.neighbor_list.bz)
+      cellNo = self.neighbor_list.idex2cell(ix,iy,iz)
+      for cellNeighNo in range(27): #loop over the "neighbor cells" of this cell
+        currCell = self.neighbor_list.cell_neighs[cellNo,cellNeighNo] 
+        bead_j = self.neighbor_list.top[currCell] #get the highest indexed bead in the neighbor chain of this cell
+        while bead_j!=-1:
+          # This if statement is supposed to guard against double counting. 
+          #   Case 1: If j is in indices, we need to guard against double counting. Hence the
+          #           j>i.
+          #   Case 2: If j is not in indices, we count no matter what.
+          if binary_search(bead_j,ignored) == -1:
+            dx = x[bead_j] - x1
+            dy = y[bead_j] - y1
+            dz = z[bead_j] - z1
+
+            dx = self.box.wrap_dx(dx)
+            dy = self.box.wrap_dy(dy)
+            dz = self.box.wrap_dz(dz)
+
+            dist = c_sqrt(dx*dx + dy*dy + dz*dz)
+
+            ti = trial_types[bead_i]
+            tj = types[bead_j]
+            rcut    = self.rcut_matrix[ti,tj]
+            epsilon = self.epsilon_matrix[ti,tj]
+            sigma   = self.sigma_matrix[ti,tj]
+            U += self.PotentialMatrix[ti][tj](dist,epsilon,sigma,rcut)
           bead_j = self.neighbor_list.neigh[bead_j]
     return U
      

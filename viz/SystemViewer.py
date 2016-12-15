@@ -20,6 +20,7 @@ class SystemViewer(object):
     self.ren.SetBackground(1.0,1.0,1.0)
     self.renWin = vtk.vtkRenderWindow()
     self.renWin.AddRenderer(self.ren)
+    self.renWin.SetSize(1200,1200)
      
     # create a renderwindowinteractor
     self.iren = vtk.vtkRenderWindowInteractor()
@@ -27,11 +28,18 @@ class SystemViewer(object):
     self.iren.SetRenderWindow(self.renWin)
     self.actor_map = {}
 
+    self.camera = vtk.vtkCamera()
+    self.camera.SetPosition(125,0,0)
+    self.camera.SetFocalPoint(0,0,0)
+    self.ren.SetActiveCamera(self.camera)
+
     self.box = None
     self.system = system
+  def clear(self):
+    self.ren.RemoveAllViewProps()
   def draw_box(self):
     if self.box is not None:
-      self.ren.RemoveActor(box)
+      self.ren.RemoveActor(self.box)
 
     edges = []
     edges.append(self.system.box.xlo)
@@ -205,7 +213,7 @@ class SystemViewer(object):
     self.ren.AddActor(bead_actor)
 
     self.actor_map[mol] = {'bead':bead_actor}
-  def show(self,picking=False):
+  def show(self,picking=False,blocking=True):
     if picking:
       style = MouseInteractorHighLightActor()
       style.SetDefaultRenderer(self.ren)
@@ -213,4 +221,5 @@ class SystemViewer(object):
        
     self.iren.Initialize()
     self.renWin.Render()
-    self.iren.Start()
+    if blocking:
+      self.iren.Start()

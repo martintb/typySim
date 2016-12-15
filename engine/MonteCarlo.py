@@ -24,7 +24,7 @@ class MonteCarlo(object):
     self.moveList.append(move)
     if not (move.name in self.rates):
       self.rates[move.name] = 0
-  def run(self,num_attempts,log_rate = 5):
+  def run(self,num_attempts,log_rate = 5,viz=None):
     '''
     Contduct the Monte Carlo simulation.
 
@@ -39,9 +39,15 @@ class MonteCarlo(object):
     # if self.system.neighbor_list is not None:
     # self.system.neighbor_list.build_nlist(self.system.x,self.s,central_origin=True)
 
+    if viz is not None:
+      viz.draw_all()
+      viz.draw_box()
+      viz.show(blocking=False)
+
+
     self.TPE = self.system.get_compute('TotalPotentialEnergy')
     self.TPE_list = []
-    self.TPE_list.append(self.TPE.compute())
+    self.TPE_list.append(sum(self.TPE.compute()))
 
     for i in range(num_attempts):
       move = random.choice(self.moveList)
@@ -58,10 +64,15 @@ class MonteCarlo(object):
         accepted = self.rates['total_accepted']
         attempted = self.rates['total_attempted']
         rate = accepted/float(attempted)
-        logStr  = 'Step {}/{}, rate: {}'.format(i,num_attempts-1,rate)
+        logStr  = 'Step {}/{}, rate: {:4.3f} Unew: {}'.format(i,num_attempts-1,rate,float(Unew))
         self.logger.info(logStr)
+
+      if (viz is not None) and success and (i%log_rate)==0:
+        viz.clear()
+        viz.draw_all()
+        viz.draw_box()
+        viz.show(blocking=False)
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
-    rate = accepted/float(attempted)
     self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))

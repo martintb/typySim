@@ -91,7 +91,7 @@ class System(object):
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
-  def set_trial_move(self,x,y,z,types,bonds):
+  def old_set_trial_move(self,x,y,z,types,bonds):
     try:
       nbeads = len(x)
     except TypeError:
@@ -114,6 +114,18 @@ class System(object):
       self.trial_z = np.array(z)
       self.trial_types = np.array(types)
       self.trial_bond_pairlist = np.array(bonds)
+  def set_trial_move(self,x,y,z,types,bonds):
+    if type(x) is not np.array:
+      x = np.array(x)
+      y = np.array(y)
+      z = np.array(z)
+      types = np.array(types)
+      bonds = np.array(bonds)
+    self.trial_x = x
+    self.trial_y = y
+    self.trial_z = z
+    self.trial_types = types
+    self.trial_bond_pairlist = bonds
   def append_trial_move(self):
     return self.add_beads(x=self.trial_x,
                           y=self.trial_y,
