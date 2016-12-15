@@ -37,6 +37,7 @@ class CBMCMove(MonteCarloMove):
     self.trial_indices= np.arange(num_trials,dtype=np.int)
     self.regrowth_indices = None
   @MonteCarloMove.counter
+  @profile
   def attempt(self):
     mc_move_data = {}
 
@@ -46,23 +47,24 @@ class CBMCMove(MonteCarloMove):
     chain_length = len(indices)
 
     if random()>0.5:
-      start_index_local = 0
+      start_index_local = 1
       end_index_local = chain_length-1
+      self.regrowth_indices  = indices[start_index_local:]
       growing_up = True
     else:
-      start_index_local = chain_length-1
+      start_index_local = chain_length-2
       end_index_local = 0
+      self.regrowth_indices  = indices[start_index_local::-1]
       growing_up = False
     start_index_sys        = indices[start_index_local]
     end_index_sys          = indices[end_index_local]
-    self.regrowth_indices  = indices
-    regrowth_size          = chain_length
+    regrowth_size          = len(self.regrowth_indices)
     start_index_new        = self.system.nbeads
     end_index_new          = self.system.nbeads + abs(regrowth_size)-1
 
     # Need to analyze bonds to get starting and ending bonds
     start_bond = self.get_outer_bonds(start_index_sys,start_index_new)
-    end_bond = self.get_outer_bonds(start_index_sys,end_index_new)
+    end_bond = self.get_outer_bonds(end_index_sys,end_index_new)
 
     if len(start_bond)>1 and len(end_bond)>1:
       raise ValueError('This move only supports linear polymers')
@@ -75,11 +77,15 @@ class CBMCMove(MonteCarloMove):
     rosen_weights_new,trial_data = self.rosenbluth(UBase,start_index_sys,start_bond,end_bond,retrace=False)
 
     if trial_data['abort']:
-      mc_move_data['string'] = 'bad_trial_move'
+      mc_move_data['string'] = 'bad_trial_move_new'
       accept = False
       return accept,mc_move_data
 
-    rosen_weights_old,_          = self.rosenbluth(UBase,start_index_sys,start_bond,end_bond,retrace=True)
+    rosen_weights_old,old_trial_data = self.rosenbluth(UBase,start_index_sys,start_bond,end_bond,retrace=True)
+    if old_trial_data['abort']:
+      mc_move_data['string'] = 'bad_trial_move_old'
+      accept = False
+      return accept,mc_move_data
 
     Wnew = np.product(np.sum(rosen_weights_new,axis=1))
     Wold = np.product(np.sum(rosen_weights_old,axis=1))
@@ -116,6 +122,7 @@ class CBMCMove(MonteCarloMove):
       elif j not in self.regrowth_indices:
         bonds.append([j,new_index])
     return bonds
+  @profile
   def rosenbluth(self,UBase,start_index_sys,start_bond,end_bond,retrace=False):
     trial_data = {}
     trial_data['abort'] = False
@@ -146,6 +153,8 @@ class CBMCMove(MonteCarloMove):
       pertubations = np.random.random((self.num_trials,3)) - 0.5
       pertubations = (pertubations.T/np.linalg.norm(pertubations,axis=1)).T
 
+      # If this is a retracing move, set the first trial position to be the 
+      # actual position of the bead and then remove one of the trial pertubations.
       if retrace:
         trial_x[0,local_index] = self.system.x[sys_index]
         trial_y[0,local_index] = self.system.y[sys_index]
@@ -182,7 +191,7 @@ class CBMCMove(MonteCarloMove):
       # the configuration is "stuck" and that all trial monomers are high energy.
       # We abort the growth early in order to not waste time continuing the growth
       # of a broken configuration.
-      if np.sum(rosen_weights[-1])<1e-16:
+      if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
         trial_data['abort'] = True
         break
 
@@ -216,6 +225,7 @@ class CBMCMove(MonteCarloMove):
     try:
       a=chosen_index
     except UnboundLocalError:
+      print 'Something has gone horribly wrong.'
       ist()
     trial_data['x'] = trial_x[chosen_index,:] 
     trial_data['y'] = trial_y[chosen_index,:]
