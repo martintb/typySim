@@ -199,6 +199,9 @@ cdef class CellList:
     # self.set_box_size(box[0],box[1],box[2])
     self.reset_nlist(x.shape[0])
     cdef double xx,yy,zz
+    cdef double bx2 = self.bx/2.0
+    cdef double by2 = self.by/2.0
+    cdef double bz2 = self.bz/2.0
     for beadNo in range(self.nbeads):
       xx = x[beadNo]
       yy = y[beadNo]
@@ -225,9 +228,9 @@ cdef class CellList:
     elif beadNo>self.nbeads:
       raise ValueError('To append new bead to list, beadNo must be equal to nbeads')
 
-    ix = self.pos2idex(x,self.dx,self.bx)
-    iy = self.pos2idex(y,self.dy,self.by)
-    iz = self.pos2idex(z,self.dz,self.bz)
+    ix = self.pos2idex(x,self.dx,self.bx,self.central_origin)
+    iy = self.pos2idex(y,self.dy,self.by,self.central_origin)
+    iz = self.pos2idex(z,self.dz,self.bz,self.central_origin)
     cellNo = self.idex2cell(ix,iy,iz)
     self.bead_cells[beadNo] = cellNo
 
@@ -288,12 +291,28 @@ cdef class CellList:
 
     # add new location to list 
     self.insert_bead(beadNo,x,y,z)
-  cdef long pos2idex(self,double x, double dx, double bx) nogil:
+  cdef double wrap_position(self, double x, double bx, bint central_origin) nogil:
+    cdef double bx2 = bx/2.0
+    if central_origin:
+      if x>bx2:
+        x-=bx
+      elif x<-bx2:
+        x+=bx
+    else:
+      if x>bx:
+        x-=bx
+      elif x<0:
+        x+=bx
+    return x
+  cdef long pos2idex(self,double x, double dx, double bx,bint central_origin) nogil:
     '''
     Convert coordinate to cell index
     '''
     cdef double shift
     cdef long idex
+
+    x = self.wrap_position(x,bx,central_origin)
+
     if self.central_origin:
       shift = bx/2.0
     else:
@@ -349,9 +368,9 @@ cdef class CellList:
     Given a position, returns all bead indices of all neighbors
     '''
     cdef long ix,iy,iz,cellNo
-    ix = self.pos2idex(x,self.dx,self.bx)
-    iy = self.pos2idex(y,self.dy,self.by)
-    iz = self.pos2idex(z,self.dz,self.bz)
+    ix = self.pos2idex(x,self.dx,self.bx,self.central_origin)
+    iy = self.pos2idex(y,self.dy,self.by,self.central_origin)
+    iz = self.pos2idex(z,self.dz,self.bz,self.central_origin)
     cellNo = self.idex2cell(ix,iy,iz)
     neighs = self.get_neighbors_by_cell(cellNo)
     return neighs

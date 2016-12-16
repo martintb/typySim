@@ -59,8 +59,9 @@ class SystemViewer(object):
     actor.GetProperty().SetColor((0.,0.,0.))
     self.ren.AddActor(actor)
     self.box = actor
-  def draw_all(self):
-    self.draw_bonds()
+  def draw_all(self,bonds=True):
+    if bonds:
+      self.draw_bonds()
     for mol in self.system.molecules:
       self.add_molecule(mol)
   def draw_bonds(self,check_bonds=True):
@@ -187,6 +188,7 @@ class SystemViewer(object):
     y = mol.y.compressed()
     z = mol.z.compressed()
     pos = np.array([x,y,z]).T
+    # pos = self.system.box.numpy_wrap_position(vec=pos)
     for t,p in zip(types,pos):
       points.InsertNextPoint(p)
       scalars.InsertNextTuple3(*colormap[t])

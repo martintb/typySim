@@ -1,5 +1,8 @@
 import random
 import logging
+import cPickle
+import numpy as np
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -33,7 +36,7 @@ class MonteCarlo(object):
     self.moveList.append(move)
     if not (move.name in self.rates):
       self.rates[move.name] = 0
-  def run(self,num_attempts,log_rate = 5,viz=None):
+  def run(self,num_attempts,log_rate = 5,viz=None,pkl_rate=None,pkl_name='trj.pkl'):
     '''
     Contduct the Monte Carlo simulation.
 
@@ -49,9 +52,13 @@ class MonteCarlo(object):
     # self.system.neighbor_list.build_nlist(self.system.x,self.s,central_origin=True)
 
     if viz is not None:
-      viz.draw_all()
+      viz.draw_all(bonds=False)
       viz.draw_box()
       viz.show(blocking=False)
+
+    if pkl_rate is not None:
+      pkl = {}
+
 
 
     self.TPE = self.system.get_compute('TotalPotentialEnergy')
@@ -84,10 +91,23 @@ class MonteCarlo(object):
 
       if (viz is not None) and success and (i%log_rate)==0:
         viz.clear()
-        viz.draw_all()
+        viz.draw_all(bonds=False)
         viz.draw_box()
         viz.show(blocking=False)
+
+      if (pkl_rate is not None) and (i%pkl_rate)==0:
+        pkl[i] = {}
+        pkl[i]['x'] = np.array(self.system.x)
+        pkl[i]['y'] = np.array(self.system.y)
+        pkl[i]['z'] = np.array(self.system.z)
+        pkl[i]['t'] = np.array(self.system.types)
+        pkl[i]['L'] = np.array(self.system.box.L)
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
     self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
+
+    if pkl_rate is not None:
+      self.logger.info('Logging trajectory to {}'.format(pkl_name))
+      with open(pkl_name,'wb') as f:
+        cPickle.dump(pkl,f)

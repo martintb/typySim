@@ -218,15 +218,25 @@ cdef class NonBondedPotentialEnergy(Compute):
     cdef long ix,iy,iz
     cdef double x1,y1,z1
     cdef double x2,y2,z2
+    cdef double ndx = self.neighbor_list.dx
+    cdef double ndy = self.neighbor_list.dy
+    cdef double ndz = self.neighbor_list.dz
+    cdef double bx = self.neighbor_list.bx
+    cdef double by = self.neighbor_list.by
+    cdef double bz = self.neighbor_list.bz
 
-    #intra
     # for bead_i in range(N_trial-1):
-    for bead_i in prange(N_trial-1,nogil=True,schedule='guided'):
+    for bead_i in prange(N_trial,nogil=True,schedule='guided'):
+      x1 = trial_x[bead_i]
+      y1 = trial_y[bead_i]
+      z1 = trial_z[bead_i]
+
+      #intra
       for bead_j in range(bead_i+1,N_trial):
 
-        dx = trial_x[bead_j] - trial_x[bead_i]
-        dy = trial_y[bead_j] - trial_y[bead_i]
-        dz = trial_z[bead_j] - trial_z[bead_i]
+        dx = trial_x[bead_j] - x1
+        dy = trial_y[bead_j] - y1
+        dz = trial_z[bead_j] - z1
 
         dx = self.box.wrap_dx(dx)
         dy = self.box.wrap_dy(dy)
@@ -241,15 +251,10 @@ cdef class NonBondedPotentialEnergy(Compute):
         sigma   = self.sigma_matrix[ti,tj]
         U += self.PotentialMatrix[ti][tj](dist,epsilon,sigma,rcut)
 
-    #inter
-    # for bead_i in range(N_trial):
-    for bead_i in prange(N_trial,nogil=True,schedule='guided'):
-      x1 = trial_x[bead_i]
-      y1 = trial_y[bead_i]
-      z1 = trial_z[bead_i]
-      ix = self.neighbor_list.pos2idex(x1,self.neighbor_list.dx,self.neighbor_list.bx)
-      iy = self.neighbor_list.pos2idex(y1,self.neighbor_list.dy,self.neighbor_list.by)
-      iz = self.neighbor_list.pos2idex(z1,self.neighbor_list.dz,self.neighbor_list.bz)
+      #inter
+      ix = self.neighbor_list.pos2idex(x1,ndx,bx,True)
+      iy = self.neighbor_list.pos2idex(y1,ndy,by,True)
+      iz = self.neighbor_list.pos2idex(z1,ndz,bz,True)
       cellNo = self.neighbor_list.idex2cell(ix,iy,iz)
       for cellNeighNo in range(27): #loop over the "neighbor cells" of this cell
         currCell = self.neighbor_list.cell_neighs[cellNo,cellNeighNo] 
@@ -315,9 +320,9 @@ cdef class NonBondedPotentialEnergy(Compute):
       x1 = trial_x[bead_i]
       y1 = trial_y[bead_i]
       z1 = trial_z[bead_i]
-      ix = self.neighbor_list.pos2idex(x1,self.neighbor_list.dx,self.neighbor_list.bx)
-      iy = self.neighbor_list.pos2idex(y1,self.neighbor_list.dy,self.neighbor_list.by)
-      iz = self.neighbor_list.pos2idex(z1,self.neighbor_list.dz,self.neighbor_list.bz)
+      ix = self.neighbor_list.pos2idex(x1,self.neighbor_list.dx,self.neighbor_list.bx,True)
+      iy = self.neighbor_list.pos2idex(y1,self.neighbor_list.dy,self.neighbor_list.by,True)
+      iz = self.neighbor_list.pos2idex(z1,self.neighbor_list.dz,self.neighbor_list.bz,True)
       cellNo = self.neighbor_list.idex2cell(ix,iy,iz)
       for cellNeighNo in range(27): #loop over the "neighbor cells" of this cell
         currCell = self.neighbor_list.cell_neighs[cellNo,cellNeighNo] 

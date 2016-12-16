@@ -37,7 +37,6 @@ class CBMCMove(MonteCarloMove):
     self.trial_indices= np.arange(num_trials,dtype=np.int)
     self.regrowth_indices = None
   @MonteCarloMove.counter
-  @profile
   def attempt(self):
     mc_move_data = {}
 
@@ -122,7 +121,6 @@ class CBMCMove(MonteCarloMove):
       elif j not in self.regrowth_indices:
         bonds.append([j,new_index])
     return bonds
-  @profile
   def rosenbluth(self,UBase,start_index_sys,start_bond,end_bond,retrace=False):
     trial_data = {}
     trial_data['abort'] = False
