@@ -3,8 +3,11 @@ from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 import numpy as np
 
-import typySim.Version
-version = typySim.Version.short_version
+import update_version
+
+long,short = update_version.get_git_version()
+version = short
+
 
 '''
 To compile the cython plugin, run this command:
