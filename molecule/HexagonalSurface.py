@@ -35,4 +35,5 @@ class HexagonalSurface(Molecule):
     boxData = {}
     boxData['lx'] = lx_fit
     boxData['ly'] = ly_fit
+    boxData['lz'] = max(molData['x']) - min(molData['y'])
     return molData,boxData

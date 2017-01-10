@@ -21,6 +21,7 @@ class EndGrowthMove(MonteCarloMove):
     self.chain_middle_type = chain_middle_type
   @MonteCarloMove.counter
   def attempt(self):
+    mc_move_data = {}
     Uold = self.engine.TPE_list[-1]
 
     growth_index = self.system.select.random_index(types=self.growth_types)
@@ -73,7 +74,9 @@ class EndGrowthMove(MonteCarloMove):
         NewChainSegment.properties['tail'] = True
         self.system.add_molecule(NewChainSegment)
 
-    return accept,Unew
+    mc_move_data['string'] = 'end_growth'
+    mc_move_data['U'] = Unew
+    return accept,mc_move_data
 
 
 

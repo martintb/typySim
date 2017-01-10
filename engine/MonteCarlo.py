@@ -102,6 +102,8 @@ class MonteCarlo(object):
         pkl[i]['z'] = np.array(self.system.z)
         pkl[i]['t'] = np.array(self.system.types)
         pkl[i]['L'] = np.array(self.system.box.L)
+        pkl[i]['bonds'] = np.array(self.system.bonds.get_pairlist())
+        pkl[i]['move_data'] = mc_move_data
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
@@ -110,4 +112,4 @@ class MonteCarlo(object):
     if pkl_rate is not None:
       self.logger.info('Logging trajectory to {}'.format(pkl_name))
       with open(pkl_name,'wb') as f:
-        cPickle.dump(pkl,f)
+        cPickle.dump(pkl,f,-1)

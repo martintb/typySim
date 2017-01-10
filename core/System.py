@@ -116,11 +116,11 @@ class System(object):
       self.trial_bond_pairlist = np.array(bonds)
   def set_trial_move(self,x,y,z,types,bonds):
     if type(x) is not np.array:
-      x = np.array(x)
-      y = np.array(y)
-      z = np.array(z)
-      types = np.array(types)
-      bonds = np.array(bonds)
+      x = np.array(x,dtype=np.float)
+      y = np.array(y,dtype=np.float)
+      z = np.array(z,dtype=np.float)
+      types = np.array(types,dtype=np.int)
+      bonds = np.array(bonds,dtype=np.int)
     self.trial_x = x
     self.trial_y = y
     self.trial_z = z

@@ -14,16 +14,17 @@ class CBMCMove(MonteCarloMove):
   '''
   Definitions
   -----------
-  XXX_index_local :  [0,len(regrowth_mol.indices))
+  local index :  [0,len(regrowth_mol.indices))
     Integer ranging between 0 and the length of the chain being regrown. Used
     to access the indices and data arrays for the regrowing chain.
 
-  XXX_index_sys : [0,self.system.nbeads)
+  sys index : [0,self.system.nbeads)
     Global index of a bead in the system arrays (e.g. self.system.x ). This 
     value ranges from .
 
-  XXX_index_new : [self.system.nbeads,self.system.nbeads+len(regrowth_mol.indices))
-    Global index of the trial_move bead. This value ranges from self.system
+  new index : [self.system.nbeads,self.system.nbeads+len(regrowth_mol.indices))
+    Global index of the trial_move bead. This value ranges from self.system to
+    the number of beads being regrown
 
   XXX_index_trial : [0,self.num_trials)
     Represents the index of one of the possibi
@@ -40,21 +41,32 @@ class CBMCMove(MonteCarloMove):
   def attempt(self):
     mc_move_data = {}
 
+    ################################
+    ## DETERMINE REGROWTH INDICES##
+    ################################
     # Choose a chain molecule and a starting point
     regrowth_mol = self.system.select.random_molecule(names=['ChainSegment'])
     indices = sorted(list(regrowth_mol.indices))
     chain_length = len(indices)
 
+    if chain_length<3:
+      accept = False
+      mc_move_data['string'] = 'chain_is_too_short'
+      return accept,mc_move_data
+
+    # We can regrow the chain from the top-down or bottom-up
     if random()>0.5:
-      start_index_local = 1
+      growing_up = True
+      # start_index_local = 1
+      start_index_local = randint(1,chain_length-3)
       end_index_local = chain_length-1
       self.regrowth_indices  = indices[start_index_local:]
-      growing_up = True
     else:
-      start_index_local = chain_length-2
+      growing_up = False
+      # start_index_local = chain_length-2
+      start_index_local = randint(3,chain_length-1) #start_index_local is [low,high)
       end_index_local = 0
       self.regrowth_indices  = indices[start_index_local::-1]
-      growing_up = False
     start_index_sys        = indices[start_index_local]
     end_index_sys          = indices[end_index_local]
     regrowth_size          = len(self.regrowth_indices)
@@ -68,29 +80,44 @@ class CBMCMove(MonteCarloMove):
     if len(start_bond)>1 and len(end_bond)>1:
       raise ValueError('This move only supports linear polymers')
 
+    ################################
+    ## INITIAL ENERGY CALCULATION ##
+    ################################
     # Need to calculate the base energy of the system that we are regrowing into
     UOld    = self.engine.TPE_list[-1]
-    URegrow = sum(self.engine.TPE.compute(partial_indices=self.regrowth_indices))
-    UBase   = UOld-URegrow
+    URegrow = self.engine.TPE.compute(partial_indices=self.regrowth_indices)
+    UBase   = UOld-sum(URegrow)
 
+    ####################
+    ## GROW NEW CHAIN ##
+    ####################
     rosen_weights_new,trial_data = self.rosenbluth(UBase,start_index_sys,start_bond,end_bond,retrace=False)
-
     if trial_data['abort']:
       mc_move_data['string'] = 'bad_trial_move_new'
       accept = False
       return accept,mc_move_data
 
+    #####################
+    ## TRACE OLD CHAIN ##
+    #####################
     rosen_weights_old,old_trial_data = self.rosenbluth(UBase,start_index_sys,start_bond,end_bond,retrace=True)
     if old_trial_data['abort']:
       mc_move_data['string'] = 'bad_trial_move_old'
       accept = False
       return accept,mc_move_data
 
+    #################################
+    ## CALCULATE FULL ROSEN FACTOR ##
+    #################################
     Wnew = np.product(np.sum(rosen_weights_new,axis=1))
     Wold = np.product(np.sum(rosen_weights_old,axis=1))
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
+    mc_move_data['k'] = regrowth_size
 
+    #######################
+    ## ACCEPT OR REJECT? ##
+    #######################
     if Wnew>Wold:
       accept = True
     else:
@@ -182,16 +209,17 @@ class CBMCMove(MonteCarloMove):
           )
       #calculation will ignore regrowth_indices and individually calculate the PE for each trial bead
       UList = self.engine.TPE.compute( trial_move=True, partial_indices=self.regrowth_indices, ntrials=self.num_trials)
-      trial_potential_energies = np.sum(np.add(UList,UBase),axis=0)
+      trial_potential_energies = np.add(np.sum(UList,axis=0),UBase)
       rosen_weights.append(np.exp(np.negative(trial_potential_energies)))
 
       # If all of the rosen_weights are extremely small or zero, it means that
       # the configuration is "stuck" and that all trial monomers are high energy.
       # We abort the growth early in order to not waste time continuing the growth
       # of a broken configuration.
-      if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
+      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
+      if (not retrace) and np.all(rosen_weights[-1]==0.):
         trial_data['abort'] = True
-        break
+        return rosen_weights,trial_data
 
       if retrace:
         chosen_index = 0
@@ -220,11 +248,6 @@ class CBMCMove(MonteCarloMove):
 
 
     # It doesn't matter which trial_index is chosen as all are equalized at this point. 
-    try:
-      a=chosen_index
-    except UnboundLocalError:
-      print 'Something has gone horribly wrong.'
-      ist()
     trial_data['x'] = trial_x[chosen_index,:] 
     trial_data['y'] = trial_y[chosen_index,:]
     trial_data['z'] = trial_z[chosen_index,:]
