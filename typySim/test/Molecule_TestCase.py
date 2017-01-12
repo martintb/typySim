@@ -20,7 +20,7 @@ class Molecule_TestCase(unittest.TestCase):
     chain = molecule.ChainSegment()
 
     system = System()
-    system.add_molecule(chain,x=x,y=y,z=z,types=types,bonds=bonds)
+    system.add_molecule(chain,x=x,y=y,z=z,types=types,bonds=bonds,bond_shift=True)
 
 
     self.assertEqual(system.nbeads,len(x))
@@ -67,8 +67,8 @@ class Molecule_TestCase(unittest.TestCase):
     chain2 = molecule.ChainSegment()
 
     system = System()
-    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1)
-    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2)
+    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1,bond_shift=True)
+    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2,bond_shift=True)
 
 
     self.assertEqual(system.nbeads,len(x1+x2))
@@ -161,9 +161,9 @@ class Molecule_TestCase(unittest.TestCase):
     chain3 = molecule.ChainSegment()
 
     system = System()
-    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1)
-    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2)
-    system.add_molecule(chain3,x=x3,y=y3,z=z3,types=types3,bonds=bonds3)
+    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1,bond_shift=True)
+    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2,bond_shift=True)
+    system.add_molecule(chain3,x=x3,y=y3,z=z3,types=types3,bonds=bonds3,bond_shift=True)
 
 
 
@@ -265,9 +265,9 @@ class Molecule_TestCase(unittest.TestCase):
     chain3 = molecule.ChainSegment()
 
     system = System()
-    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1)
-    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2)
-    system.add_molecule(chain3,x=x3,y=y3,z=z3,types=types3,bonds=bonds3)
+    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1,bond_shift=True)
+    system.add_molecule(chain2,x=x2,y=y2,z=z2,types=types2,bonds=bonds2,bond_shift=True)
+    system.add_molecule(chain3,x=x3,y=y3,z=z3,types=types3,bonds=bonds3,bond_shift=True)
 
     #remove chain2
     chain2_removed = system.remove_molecule(molecule=chain2,remove_beads=False)
@@ -357,8 +357,8 @@ class Molecule_TestCase(unittest.TestCase):
     chain23 = molecule.ChainSegment()
 
     system = System()
-    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1)
-    system.add_molecule(chain23,x=x23,y=y23,z=z23,types=types23,bonds=bonds23)
+    system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1,bond_shift=True)
+    system.add_molecule(chain23,x=x23,y=y23,z=z23,types=types23,bonds=bonds23,bond_shift=True)
 
     chain2, chain3 =  chain23.distribute([range(4,8),range(8,12)])
     
