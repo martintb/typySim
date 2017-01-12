@@ -85,7 +85,7 @@ class MonteCarlo(object):
         else:
           color = bcolors.FAIL
         logStr  = color 
-        logStr +='Step {}/{}, rate: {:4.3f} U: {}'.format(i,num_attempts-1,rate,mc_move_data['string']) + bcolors.ENDC
+        logStr +='Step {}/{}, rate: {:4.3f} U: {} W: {}'.format(i,num_attempts-1,rate,self.TPE_list[-1],mc_move_data['string']) + bcolors.ENDC
         logStr += bcolors.ENDC
         self.logger.info(logStr)
 
