@@ -30,20 +30,23 @@ class EndGrowthMove(MonteCarloMove):
     growth_z = self.system.z[growth_index]
     growth_type = self.system.types[growth_index]
     
-    # generate random position
-    newVec = linalg.normalize(np.random.random(3) - 0.5)
-    new_x = newVec[0] + growth_x
-    new_y = newVec[1] + growth_y
-    new_z = newVec[2] + growth_z
-    new_x,new_y,new_z = self.system.box.numpy_wrap_position(x=new_x,y=new_y,z=new_z)
+    # generate random position. The magic at the end of the line transforms the size (3,) array
+    # to a size (3,1) array which is important for the wrapping step.
+    newVec = linalg.normalize(np.random.random(3) - 0.5)[np.newaxis].T
+    newVec[0] += growth_x
+    newVec[1] += growth_y
+    newVec[2] += growth_z
+    (new_x,new_y,new_z),(new_imx,new_imy,new_imz) = self.system.box.wrap_positions(x=newVec[0],y=newVec[1],z=newVec[2])
     new_index = self.system.nbeads
-
     new_types = self.chain_end_type
     new_bonds = [[growth_index,new_index]]
     self.system.set_trial_move(
-                                x=[[new_x]],
-                                y=[[new_y]],
-                                z=[[new_z]],
+                                x=[new_x],
+                                y=[new_y],
+                                z=[new_z],
+                                imx=[new_imx],
+                                imy=[new_imy],
+                                imz=[new_imz],
                                 types=[[new_types]],
                                 bonds=new_bonds)
 

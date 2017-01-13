@@ -38,9 +38,9 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
   def base_test(self,lx,ly,lz,N,dz,potential,r0):
     dx = 1.0
     dy = 0.5
-    x = [i*dx for i in range(N)]
-    y = [i*dy for i in range(N)]
-    z = [dz*i-lz/2.0 for i in range(N)]
+    x = np.array([i*dx for i in range(N)])
+    y = np.array([i*dy for i in range(N)])
+    z = np.array([dz*i-lz/2.0 for i in range(N)])
     t = [0]*N
     bonds = [[i,j] for i,j in zip(range(N-1),range(1,N))]
 
@@ -66,7 +66,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.NonBondedTable = NBPT
 
 
-    x,y,z = system.box.numpy_wrap_position(x=x,y=y,z=z).T
+    (x,y,z),(imx,imy,imz) = system.box.wrap_positions(x=x,y=y,z=z)
     U0 = self.calc_all_potential(bonds,x,y,z,t,lx,ly,lz,BPT)
 
     xarray = np.array(x,dtype=np.float)
@@ -108,9 +108,9 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     potential = 'Harmonic'
     partial_indices = [4,3,5]
 
-    x = [0.0]*N
-    y = [0.0]*N
-    z = [dz*i-lz/2.0 for i in range(N)]
+    x = np.array([0.0]*N)
+    y = np.array([0.0]*N)
+    z = np.array([dz*i-lz/2.0 for i in range(N)])
     t = [0]*N
     bonds = [[i,j] for i,j in zip(range(N-1),range(1,N))]
 
@@ -141,7 +141,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.NonBondedTable = NBPT
 
 
-    x,y,z = system.box.numpy_wrap_position(x=x,y=y,z=z).T
+    (x,y,z),(imx,imy,imz) = system.box.wrap_positions(x=x,y=y,z=z)
 
     xarray = np.array(x,dtype=np.float)
     yarray = np.array(y,dtype=np.float)
@@ -162,9 +162,9 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     potential = 'Harmonic'
     partial_indices = [4,3,6]
 
-    x = [0.0]*N
-    y = [0.0]*N
-    z = [dz*i-lz/2.0 for i in range(N)]
+    x = np.array([0.0]*N)
+    y = np.array([0.0]*N)
+    z = np.array([dz*i-lz/2.0 for i in range(N)])
     t = [0]*N
     bonds = [[i,j] for i,j in zip(range(N-1),range(1,N))]
 
@@ -195,7 +195,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.NonBondedTable = NBPT
 
 
-    x,y,z = system.box.numpy_wrap_position(x=x,y=y,z=z).T
+    (x,y,z),(imx,imy,imz) = system.box.wrap_positions(x=x,y=y,z=z)
 
     xarray = np.array(x,dtype=np.float)
     yarray = np.array(y,dtype=np.float)
@@ -215,9 +215,9 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     potential = 'Harmonic'
 
     N = 10
-    ref_x = [0.0]*N
-    ref_y = [0.0]*N
-    ref_z = [dz*i-lz/2.0 for i in range(N)]
+    ref_x = np.array([0.0]*N)
+    ref_y = np.array([0.0]*N)
+    ref_z = np.array([dz*i-lz/2.0 for i in range(N)])
     ref_t = [0]*N
     ref_bonds = [[i,j] for i,j in zip(range(N-1),range(1,N))]
 
@@ -263,7 +263,7 @@ class BondedPotentialEnergy_TestCase(unittest.TestCase):
     system.trial_types = np.array([trial_t])
     system.trial_bond_pairlist = np.array(trial_bonds)
 
-    x,y,z = system.box.numpy_wrap_position(x=ref_x,y=ref_y,z=ref_z).T
+    (ref_x,ref_y,ref_z),(imx,imy,imz) = system.box.wrap_positions(x=ref_x,y=ref_y,z=ref_z)
     U0 = self.calc_all_potential(ref_bonds,ref_x,ref_y,ref_z,ref_t,lx,ly,lz,BPT)
 
     PE = BondedPotentialEnergy(system)

@@ -33,9 +33,9 @@ class Box_TestCase(unittest.TestCase):
 
     # half_L 
     # self.assertTupleEqual(box.half_L,(-1/2.0,box_lengths[1]/2.0,box_lengths[2]/2.0))
-    self.assertAlmostEqual(box.half_L[0],-1/2.0,delta=0.01)
-    self.assertAlmostEqual(box.half_L[1],box_lengths[1]/2.0,delta=0.01)
-    self.assertAlmostEqual(box.half_L[2],box_lengths[2]/2.0,delta=0.01)
+    # self.assertAlmostEqual(box.half_L[0],-1/2.0,delta=0.01)
+    # self.assertAlmostEqual(box.half_L[1],box_lengths[1]/2.0,delta=0.01)
+    # self.assertAlmostEqual(box.half_L[2],box_lengths[2]/2.0,delta=0.01)
 
     #lo/hi
     self.assertAlmostEqual(box.xhi,-1/2.0,delta=0.01)

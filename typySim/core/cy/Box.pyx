@@ -29,6 +29,7 @@ cdef class Box:
   ----------
   system : object
       Reference to parent system. Used for auto-wrapping and position
+
   cell_grid : int tuple of size, optional
       Definition of the number of divisions to use in the x, y, and z directions
       when creating a Cell List based neighorborlist object. After creation, the 
@@ -60,33 +61,22 @@ cdef class Box:
       self.neighbor_list = CellList(*cell_grid)
     else:
       self.neighbor_list = None
-  def numpy_wrap_all_positions(self):
-    ''' Convenience function to wrapping all system positions back into the box. '''
-    self.system.positions = self.numpy_wrap_position(self.system.positions)
-    self.system.reset_all_molecules()
-  def numpy_wrap_position(self,vec=None,x=None,y=None,z=None):
-    ''' Wrap all passed positions back into the box.'''
-    if vec is None:
-      vec = np.array([x,y,z]).T
-    wrapped_vec = vec.copy()
-    wrapped_vec = np.where(wrapped_vec>self.half_L,wrapped_vec-self.L,wrapped_vec)
-    wrapped_vec = np.where(wrapped_vec<self.negative_half_L,wrapped_vec+self.L,wrapped_vec)
-    return wrapped_vec
-  def numpy_wrap_distance(self,dr):
-    ''' Wrap all passed distances via the minimum image convention. '''
-    dr = np.abs(dr)
-    dr = np.where(dr>self.half_L,dr-self.L,dr)
-    dist = np.sqrt(np.sum(np.square(dr),axis=1))
-    return dist
+
+  def __str__(self):
+    xyz = ( '{}:{:5.4f} '*3).format('x',self.lx,'y',self.ly,'z',self.lz)
+    return '< ' + xyz + '>'
+
   def fit(self,positions):
     ''' Fit box to currently loaded positions in the system. '''
     maxPos = np.max(np.abs(positions),axis=0)
     self.lx=2*(maxPos[0]+1)
     self.ly=2*(maxPos[1]+1)
     self.lz=2*(maxPos[2]+1)
+
   def setVolume(self,vol):
     ''' Set the box lengths isotropically based on a desired volume. '''
     self.L = vol**(1.0/3.0)
+
   def _setLength(self,dim,length):
     if dim=='x':
       self._lx = length
@@ -105,98 +95,56 @@ cdef class Box:
       self._zhi = +length/2.0
     if self.neighbor_list is not None:
       self.neighbor_list.set_box_size(self._lx,self._ly,self._lz)
-  def __str__(self):
-    xyz = ( '{}:{:5.4f} '*3).format('x',self.lx,'y',self.ly,'z',self.lz)
-    return '< ' + xyz + '>'
 
-  #########################
-  # CYTHON ONLY FUNCTIONS #
-  #########################
+  def _setEdge(self,dim,side,value):
+    if dim=='x':
+      if side=='lo':
+        self._xlo = value
+      elif side=='hi':
+        self._xhi = value
+      length = (self._xhi - self._xlo)
+      self._lx = length
+      self._half_lx = length/2.0
+    elif dim=='y':
+      if side=='lo':
+        self._ylo = value
+      elif side=='hi':
+        self._yhi = value
+      length = (self._yhi - self._ylo)
+      self._ly = length
+      self._half_ly = length/2.0
+    elif dim=='z':
+      if side=='lo':
+        self._zlo = value
+      elif side=='hi':
+        self._zhi = value
+      length = (self._zhi - self._zlo)
+      self._lz = length
+      self._half_lz = length/2.0
+    if self.neighbor_list is not None:
+      self.neighbor_list.set_box_size(self._lx,self._ly,self._lz)
 
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_x(self,double x) nogil :
-    ''' Wrap a passed coordinate back into the box.'''
-    if x>self._half_lx:
-      x -=self._lx
-    elif x<-self._half_lx:
-      x +=self._lx
-    return x
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_y(self,double y) nogil :
-    ''' Wrap a passed coordinate back into the box.'''
-    if y>self._half_ly:
-      y -=self._ly
-    elif y<-self._half_ly:
-      y +=self._ly
-    return y
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_z(self,double z) nogil :
-    if z>self._half_lz:
-      z -=self._lz
-    elif z<-self._half_lz:
-      z +=self._lz
-    return z
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_dx(self,double dx) nogil :
-    ''' Wrap a passed coordinate back into the box.'''
-    dx = c_fabs(dx)
-    if dx>self._half_lx:
-      dx -=self._lx
-    elif dx<-self._half_lx:
-      dx +=self._lx
-    return dx
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_dy(self,double dy) nogil :
-    ''' Wrap a passed coordinate back into the box.'''
-    dy = c_fabs(dy)
-    if dy>self._half_ly:
-      dy -=self._ly
-    elif dy<-self._half_ly:
-      dy +=self._ly
-    return dy
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  @cython.cdivision(True)
-  @cython.nonecheck(False)
-  cdef double wrap_dz(self,double dz) nogil :
-    dz = c_fabs(dz)
-    if dz>self._half_lz:
-      dz -=self._lz
-    elif dz<-self._half_lz:
-      dz +=self._lz
-    return dz
-
-  ##########################
-  # DIMENSIONAL PROPERTIES #
-  ##########################
+  ###############
+  # BOX LENGTHS #
+  ###############
   @property
   def L(self):
     return (self._lx,self._ly,self._lz)
   @L.setter
   def L(self,value):
-    self._setLength('x',value)
-    self._setLength('y',value)
-    self._setLength('z',value)
+    '''
+    If value is a list/tuple, set the lengths independently, otherwise
+    set all lengths equal to value.
+    '''
+    try:
+      lx = value[0]
+      ly = value[1]
+      lz = value[2]
+    except TypeError:
+      lx = ly = lz = value
+    self._setLength('x',lx)
+    self._setLength('y',ly)
+    self._setLength('z',lz)
   @property
   def lx(self):
     return self._lx
@@ -215,9 +163,50 @@ cdef class Box:
   @lz.setter
   def lz(self,value):
     self._setLength('z',value)
-  #################
-  # PARTIAL BOXES #
-  #################
+
+  ##################
+  # BOX BOUNDARIES #
+  ##################
+  @property
+  def xlo(self):
+    return self._xlo
+  @xlo.setter
+  def xlo(self,value):
+    self._setEdge('x','lo',value)
+  @property
+  def ylo(self):
+    return self._ylo
+  @ylo.setter
+  def ylo(self,value):
+    self._setEdge('y','lo',value)
+  @property
+  def zlo(self):
+    return self._zlo
+  @zlo.setter
+  def zlo(self,value):
+    self._setEdge('z','lo',value)
+  @property
+  def xhi(self):
+    return self._xhi
+  @xhi.setter
+  def xhi(self,value):
+    self._setEdge('x','hi',value)
+  @property
+  def yhi(self):
+    return self._yhi
+  @yhi.setter
+  def yhi(self,value):
+    self._setEdge('y','hi',value)
+  @property
+  def zhi(self):
+    return self._zhi
+  @zhi.setter
+  def zhi(self,value):
+    self._setEdge('z','hi',value)
+
+  @property
+  def half_L(self):
+    return (self._half_lx,self._half_ly,self._half_lz)
   @property
   def half_lx(self):
     return self._half_lx
@@ -227,31 +216,176 @@ cdef class Box:
   @property
   def half_lz(self):
     return self._half_lz
-  @property
-  def half_L(self):
-    return (self._half_lx,self._half_ly,self._half_lz)
-  @property
-  def negative_half_L(self):
-    return (-self._half_lx,-self._half_ly,-self._half_lz)
-  #############
-  # XYZ/LO/HI #
-  #############
-  @property
-  def xlo(self):
-    return self._xlo
-  @property
-  def ylo(self):
-    return self._ylo
-  @property
-  def zlo(self):
-    return self._zlo
-  @property
-  def xhi(self):
-    return self._xhi
-  @property
-  def yhi(self):
-    return self._yhi
-  @property
-  def zhi(self):
-    return self._zhi
+
+  ###################
+  # PYTHON WRAPPERS #
+  ###################
+  def wrap_all_positions(self):
+    ''' Convenience function to wrapping all system positions back into the box. '''
+
+    (x,y,z),(imx,imy,imz) = self.wrap_positions(self.system.x,self.system.y,self.system.z)
+    self.system.x = x
+    self.system.y = y
+    self.system.z = z
+    self.system.imx += imx
+    self.system.imy += imy
+    self.system.imz += imz
+    self.system.reset_all_molecules()
+
+  def wrap_positions(self,double[:] x, double[:] y, double[:] z):
+    ''' Wraps *coordinate* up to one box-length in each direction.
+
+    .. Warning::
+      This function only wraps "once". This means that if a bead is several
+      box distances away from the central box in one or more directions, this function
+      would have to be called *multiple* times to wrap the position into the central
+      image. 
+
+    '''
+    cdef long natoms = x.shape[0]
+    cdef long[:] imx = np.zeros(natoms,dtype=int)
+    cdef long[:] imy = np.zeros(natoms,dtype=int)
+    cdef long[:] imz = np.zeros(natoms,dtype=int)
+    cdef double[:] nx = x.copy()
+    cdef double[:] ny = y.copy()
+    cdef double[:] nz = z.copy()
+    cdef long i
+    for i in range(natoms):
+      if nx[i] > self._xhi:
+        nx[i]    -= self._lx
+        imx[i]   -= 1
+      elif nx[i] < self._xlo:
+        nx[i]    += self._lx
+        imx[i]   += 1
+
+      if ny[i] > self._yhi:
+        ny[i]    -= self._ly
+        imy[i]   -= 1
+      elif ny[i] < self._ylo:
+        ny[i]    += self._ly
+        imy[i]   += 1
+
+      if nz[i] > self._zhi:
+        nz[i]    -= self._lz
+        imz[i]   -= 1
+      elif nz[i] < self._zlo:
+        nz[i]    += self._lz
+        imz[i]   += 1
+    return (nx,ny,nz),(imx,imy,imz)
+
+  def wrap_distances(self,double[:] dx, double[:] dy, double[:] dz):
+    ''' Wraps *distances* up to one box length in each direction.
+
+    .. Warning::
+      This function only wraps "once". This means that if a bead is several
+      box distances away from the central box in one or more directions, this function
+      would have to be called *multiple* times to wrap the position into the central
+      image. 
+
+    '''
+    cdef long natoms = dx.shape[0]
+    cdef double idx,idy,idz
+    cdef long i
+    cdef list dist = []
+
+    for i in range(natoms):
+      idx = c_fabs(dx[i])
+      if idx > self._half_lx:
+        idx    -= self._lx
+
+      idy = c_fabs(dy[i])
+      if idy > self._half_ly:
+        idy    -= self._ly
+
+      idz = c_fabs(dz[i])
+      if idz > self._half_lz:
+        idz    -= self._lz
+
+      dist.append(((idx*idx) + (idy*idy) + (idz*idz))**(0.5))
+
+    return dist
+
+  ########################
+  # FAST CYTHON WRAPPERS #
+  ########################
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_x(self,double x) nogil :
+    ''' Wrap a passed *coordinate* back into the box.
+
+    .. warning:: 
+      This method **does not** update the system image flags. Use with caution. 
+    '''
+    if x>self._xhi:
+      x -=self._lx
+    elif x<self._xlo:
+      x +=self._lx
+    return x
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_y(self,double y) nogil :
+    ''' Wrap a passed *coordinate* back into the box.
+
+    .. warning:: 
+      This method **does not** update the system image flags. Use with caution. 
+    '''
+    if y>self._yhi:
+      y -=self._ly
+    elif y<self._ylo:
+      y +=self._ly
+    return y
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_z(self,double z) nogil :
+    ''' Wrap a passed *coordinate* back into the box.
+
+    .. warning:: 
+      This method **does not** update the system image flags. Use with caution. 
+    '''
+    if z>self._zhi:
+      z -=self._lz
+    elif z<self._zlo:
+      z +=self._lz
+    return z
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dx(self,double dx) nogil :
+    ''' Wrap a passed *distance* back into the box.'''
+    dx = c_fabs(dx)
+    if dx>self._half_lx:
+      dx -=self._lx
+    return dx
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dy(self,double dy) nogil :
+    ''' Wrap a passed *distance* back into the box.'''
+    dy = c_fabs(dy)
+    if dy>self._half_ly:
+      dy -=self._ly
+    return dy
+
+  @cython.boundscheck(False)
+  @cython.wraparound(False)
+  @cython.cdivision(True)
+  @cython.nonecheck(False)
+  cdef double wrap_dz(self,double dz) nogil :
+    ''' Wrap a passed *distance* back into the box.'''
+    dz = c_fabs(dz)
+    if dz>self._half_lz:
+      dz -=self._lz
+    return dz
 

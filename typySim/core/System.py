@@ -21,6 +21,11 @@ class System(object):
   x,y,z : float ndarrary, size (nbeads)
       Arrays of bead cartesian coordinate positions
 
+  imx,imy,imz : int ndarrary, size (nbeads)
+      Arrays of integers representing which image a bead is located. 0 means
+      the bead is in the primary (central image). Image flags can be positive
+      or negative. 
+
   types : int ndarray, size (nbeads)
       Array of bead types. These types are used to identifying interaction
       types, and, most importantly, how the Monte Carlo moves are applied to
@@ -58,6 +63,9 @@ class System(object):
     self.x              = np.array([],dtype=np.float)
     self.y              = np.array([],dtype=np.float)
     self.z              = np.array([],dtype=np.float)
+    self.imx              = np.array([],dtype=np.int)
+    self.imy              = np.array([],dtype=np.int)
+    self.imz              = np.array([],dtype=np.int)
     self.types          = np.array([],dtype=np.int)
     self.molecule_map   = np.array([],dtype=object)
     self.molecules      = list()
@@ -67,6 +75,9 @@ class System(object):
     self.trial_x      = None
     self.trial_y      = None
     self.trial_z      = None
+    self.trial_imx     = None
+    self.trial_imy     = None
+    self.trial_imz     = None
     self.trial_types  = None
     self.trial_bond_pairlist  = None
     self.nbeads_trial = 0
@@ -91,45 +102,31 @@ class System(object):
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
-  def old_set_trial_move(self,x,y,z,types,bonds):
-    try:
-      nbeads = len(x)
-    except TypeError:
-      nbeads = 1
-      x = [x]
-      y = [y]
-      z = [z]
-      types = [types]
-
-    if self.nbeads_trial == nbeads:
-      np.copyto(self.trial_x,x)
-      np.copyto(self.trial_y,y)
-      np.copyto(self.trial_z,z)
-      np.copyto(self.trial_types,types)
-      self.trial_bond_pairlist = np.array(bonds)
-    else:
-      self.nbeads_trial = nbeads
-      self.trial_x = np.array(x)
-      self.trial_y = np.array(y)
-      self.trial_z = np.array(z)
-      self.trial_types = np.array(types)
-      self.trial_bond_pairlist = np.array(bonds)
-  def set_trial_move(self,x,y,z,types,bonds):
+  def set_trial_move(self,x,y,z,imx,imy,imz,types,bonds):
     if type(x) is not np.array:
       x = np.array(x,dtype=np.float)
       y = np.array(y,dtype=np.float)
       z = np.array(z,dtype=np.float)
+      imx = np.array(imx,dtype=np.float)
+      imy = np.array(imy,dtype=np.float)
+      imz = np.array(imz,dtype=np.float)
       types = np.array(types,dtype=np.int)
       bonds = np.array(bonds,dtype=np.int)
     self.trial_x = x
     self.trial_y = y
     self.trial_z = z
+    self.trial_imx = imx
+    self.trial_imy = imy
+    self.trial_imz = imz
     self.trial_types = types
     self.trial_bond_pairlist = bonds
   def append_trial_move(self):
     return self.add_beads(x=self.trial_x,
                           y=self.trial_y,
                           z=self.trial_z,
+                          imx=self.trial_imx,
+                          imy=self.trial_imy,
+                          imz=self.trial_imz,
                           types=self.trial_types,
                           bonds=self.trial_bond_pairlist)
   @property
@@ -178,7 +175,7 @@ class System(object):
 
     for mol in remove_list:
       self.remove_molecule(mol,keep_beads=False)
-  def add_beads(self, x,y,z,types, bonds=None,bond_shift=False):
+  def add_beads(self,x,y,z,types,imx=None,imy=None,imz=None,bonds=None,bond_shift=False):
     '''
     Primary method for adding new beads to the :class:`System`. Note that this method does
     not modify the molecule list or the molecules contained therein!
@@ -199,6 +196,10 @@ class System(object):
         forward and reverse direction (i-bonded-j and j-bonded-i). The :class:`System` class 
         uses sets to store bond pairs so duplicate bonds are not a worry.
 
+    imx,imy,imz : int ndarray, size (N), *Optional*
+        Array of position image flags to be added to system. If not specified, it is assumed
+        that the beads are all in the central image and zero is set for all image flags. 
+
     '''
     nx = len(x)
     ny = len(y)
@@ -217,6 +218,18 @@ class System(object):
     self.y     = np.append(self.y,y)
     self.z     = np.append(self.z,z)
     self.types = np.append(self.types,types)
+
+    if (imx is None) or (imy is None) or (imz is None):
+      imx = imy = imz = np.zeros(new_nbeads,dtype=np.int)
+    elif not (len(x)==len(imx)==len(imy)==len(imz)):
+      raise ValueError(
+                    '''Coordinate and image arrays do not have matching sizes!
+                       num_x,num_imx:{},{}
+                       num_y,num_imy:{},{}
+                       num_z,num_imz:{},{}'''.format(len(x),len(imx),len(y),len(imy),len(z),len(imz)))
+    self.imx     = np.append(self.imx,imx)
+    self.imy     = np.append(self.imy,imy)
+    self.imz     = np.append(self.imz,imz)
     
     #the molecule_map and bonds data structures must be initialized regardless of whether the beads
     #have bonds or are associated with molecules. 
@@ -273,6 +286,9 @@ class System(object):
     self.x            = np.delete(self.x,indices)
     self.y            = np.delete(self.y,indices)
     self.z            = np.delete(self.z,indices)
+    self.imx            = np.delete(self.imx,indices)
+    self.imy            = np.delete(self.imy,indices)
+    self.imz            = np.delete(self.imz,indices)
     self.types        = np.delete(self.types,indices)
     self.molecule_map = np.delete(self.molecule_map,indices)
 

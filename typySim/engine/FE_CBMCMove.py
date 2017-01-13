@@ -142,6 +142,14 @@ class FE_CBMCMove(MonteCarloMove):
         self.system.x[sys_index] = x
         self.system.y[sys_index] = y
         self.system.z[sys_index] = z
+
+        imx = trial_data['imx'][local_index]
+        imy = trial_data['imy'][local_index]
+        imz = trial_data['imz'][local_index]
+        self.system.imx[sys_index] = imx
+        self.system.imy[sys_index] = imy
+        self.system.imz[sys_index] = imz
+
         self.system.neighbor_list.update_bead(sys_index,x=x,y=y,z=z)
 
     mc_move_data['string'] = 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
@@ -173,6 +181,14 @@ class FE_CBMCMove(MonteCarloMove):
     trial_x = np.empty((self.num_trials,regrowth_size),dtype=np.float)
     trial_y = np.empty((self.num_trials,regrowth_size),dtype=np.float)
     trial_z = np.empty((self.num_trials,regrowth_size),dtype=np.float)
+
+    prev_imx = self.system.imx[prev_index_sys]
+    prev_imy = self.system.imy[prev_index_sys]
+    prev_imz = self.system.imz[prev_index_sys]
+    trial_imx = np.empty((self.num_trials,regrowth_size),dtype=np.int)
+    trial_imy = np.empty((self.num_trials,regrowth_size),dtype=np.int)
+    trial_imz = np.empty((self.num_trials,regrowth_size),dtype=np.int)
+
     trial_types = np.empty((self.num_trials,regrowth_size),dtype=np.int)
     trial_bonds = np.array(start_bond,dtype=np.int)
 
@@ -189,6 +205,9 @@ class FE_CBMCMove(MonteCarloMove):
         trial_x[0,local_index] = self.system.x[sys_index]
         trial_y[0,local_index] = self.system.y[sys_index]
         trial_z[0,local_index] = self.system.z[sys_index]
+        trial_imx[0,local_index] = self.system.imx[sys_index]
+        trial_imy[0,local_index] = self.system.imy[sys_index]
+        trial_imz[0,local_index] = self.system.imz[sys_index]
         trial_types[0,local_index] = self.system.types[sys_index]
         pertubations = pertubations[1:]
         trial_index_start = 1
@@ -196,19 +215,27 @@ class FE_CBMCMove(MonteCarloMove):
         trial_index_start = 0
 
       for trial_index,vec in enumerate(pertubations,start=trial_index_start):
-        new_x = prev_x + vec[0]
-        new_y = prev_y + vec[1]
-        new_z = prev_z + vec[2]
-        new_x, new_y, new_z = self.system.box.numpy_wrap_position(x=new_x, y=new_y, z=new_z)
-        trial_x[trial_index,local_index] = new_x
-        trial_y[trial_index,local_index] = new_y
-        trial_z[trial_index,local_index] = new_z
+        trial_types[trial_index,local_index] = self.system.types[sys_index]
+        new_pos = vec[np.newaxis].T
+        new_pos[0] += prev_x
+        new_pos[1] += prev_y
+        new_pos[2] += prev_z
+        (new_x, new_y, new_z),(new_imx,new_imy,new_imz) = self.system.box.wrap_positions(new_pos[0],new_pos[1],new_pos[2])
+        trial_x[trial_index,local_index] = new_x[0]
+        trial_y[trial_index,local_index] = new_y[0]
+        trial_z[trial_index,local_index] = new_z[0]
+        trial_imx[trial_index,local_index] = (prev_imx + new_imx[0])
+        trial_imy[trial_index,local_index] = (prev_imy + new_imy[0])
+        trial_imz[trial_index,local_index] = (prev_imz + new_imz[0])
         trial_types[trial_index,local_index] = self.system.types[sys_index]
 
       self.system.set_trial_move(
           x=trial_x[:,:(local_index+1)],
           y=trial_y[:,:(local_index+1)],
           z=trial_z[:,:(local_index+1)],
+          imx=trial_imx[:,:(local_index+1)],
+          imy=trial_imy[:,:(local_index+1)],
+          imz=trial_imz[:,:(local_index+1)],
           types=trial_types[:,:(local_index+1)],
           bonds=trial_bonds,
           )
@@ -217,8 +244,9 @@ class FE_CBMCMove(MonteCarloMove):
       dx = trial_x[:,local_index] - end_x
       dy = trial_y[:,local_index] - end_y
       dz = trial_z[:,local_index] - end_z
-      dr = np.array([dx,dy,dz]).T
-      all_dist = self.system.box.numpy_wrap_distance(dr)
+      dr = np.array([dx,dy,dz])
+      all_dist = self.system.box.wrap_distances(dr[0],dr[1],dr[2])
+
 
       nbonds = regrowth_size - local_index
       biasx = self.bias[nbonds]['x']
@@ -253,9 +281,15 @@ class FE_CBMCMove(MonteCarloMove):
         trial_x[trial_index,local_index] = trial_x[chosen_index,local_index]
         trial_y[trial_index,local_index] = trial_y[chosen_index,local_index]
         trial_z[trial_index,local_index] = trial_z[chosen_index,local_index]
+        trial_imx[trial_index,local_index] = trial_imx[chosen_index,local_index]
+        trial_imy[trial_index,local_index] = trial_imy[chosen_index,local_index]
+        trial_imz[trial_index,local_index] = trial_imz[chosen_index,local_index]
       prev_x = trial_x[chosen_index,local_index]
       prev_y = trial_y[chosen_index,local_index]
       prev_z = trial_z[chosen_index,local_index]
+      prev_imx = trial_imx[chosen_index,local_index]
+      prev_imy = trial_imy[chosen_index,local_index]
+      prev_imz = trial_imz[chosen_index,local_index]
 
       # This is mostly for future stupidify reduction. No need to add bonds on file loop. Removing
       # the outer if currently won't break anything, but it actually mangles the trial_bonds list 
@@ -279,6 +313,9 @@ class FE_CBMCMove(MonteCarloMove):
     trial_data['x'] = trial_x[chosen_index,:] 
     trial_data['y'] = trial_y[chosen_index,:]
     trial_data['z'] = trial_z[chosen_index,:]
+    trial_data['imx'] = trial_imx[chosen_index,:] 
+    trial_data['imy'] = trial_imy[chosen_index,:]
+    trial_data['imz'] = trial_imz[chosen_index,:]
     trial_data['U'] = trial_potential_energies[chosen_index]
 
     return rosen_weights,trial_data,bias_weights
