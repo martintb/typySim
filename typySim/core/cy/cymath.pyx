@@ -6,6 +6,8 @@
 # cython: nonecheck=False
 from libc.math cimport sqrt as c_sqrt
 
+from typySim.core.cy.Box cimport * 
+
 cdef inline double norm(double[:] vec):
   return c_sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2])
 
@@ -43,22 +45,34 @@ cdef inline double periodic_boundary_wrap(double dr, double BOXL):
     dr=dr+BOXL
   return dr
 
-cdef long binary_search(long value, long[:] array) nogil:
-  ''' 
-  Returns index of value in array if value is found
-  Return -1 is value is not found
-  Warning: Array must be pre-sorted for this to work! 
-  '''
-  cdef long lo = 0
-  cdef long hi = array.shape[0]-1
-  cdef long mid
-  while lo<=hi:
-    mid = lo + (hi-lo)/2
-    if array[mid] == value:
-      return mid
-    elif array[mid] < value:
-      lo = mid + 1
-    else:
-      hi = mid - 1
-  #value not found!
-  return -1
+# cdef long binary_search(long value, long[:] array) nogil:
+#   ''' 
+#   Returns index of value in array if value is found
+#   Return -1 is value is not found
+#   Warning: Array must be pre-sorted for this to work! 
+#   '''
+#   cdef long lo = 0
+#   cdef long hi = array.shape[0]-1
+#   cdef long mid
+#   while lo<=hi:
+#     mid = lo + (hi-lo)/2
+#     if array[mid] == value:
+#       return mid
+#     elif array[mid] < value:
+#       lo = mid + 1
+#     else:
+#       hi = mid - 1
+#   #value not found!
+#   return -1
+# 
+# cpdef n_closest(long n, double x1,double y1,double z1, double[:] x2,double[:] y2,double[:] z2, Box box):
+#   ''' 
+#   Returns 
+#   '''
+#   cdef long[:] index_out = np.full(n,-1,dtype=np.float)
+#   cdef double[:] dist_out = np.full(n,-1,dtype=np.int)
+# 
+#   cdef long natoms = x2.shape[0]
+#   cdef long i,j
+# 
+#   return np.array(index_out),np.array(dist_out)

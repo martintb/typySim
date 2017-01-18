@@ -18,8 +18,8 @@ from libcpp.vector cimport vector
 from Compute cimport Compute
 
 from typySim.core.cy.Box cimport * 
-from typySim.core.cy.cymath cimport binary_search
 from typySim.potential.cy.AllPotentials cimport *
+from typySim.core.cy.cyutil cimport binary_search
 
 cdef class BondedPotentialEnergy(Compute):
   def __init__(self,system):
