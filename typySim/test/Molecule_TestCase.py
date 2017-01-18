@@ -285,7 +285,7 @@ class Molecule_TestCase(unittest.TestCase):
     self.assertIs(system.molecules[0].system,system)
     self.assertIs(system.molecules[1].system,system)
     self.assertListEqual(system.molecules[0].indices,range(4))
-    self.assertListEqual(system.molecules[1].indices,range(4,12))
+    self.assertListEqual(sorted(system.molecules[1].indices),range(4,12))
     self.assertListEqual(list(system.x),x1+x2+x3)
     self.assertListEqual(list(system.y),y1+y2+y3)
     self.assertListEqual(list(system.z),z1+z2+z3)
@@ -360,7 +360,7 @@ class Molecule_TestCase(unittest.TestCase):
     system.add_molecule(chain1,x=x1,y=y1,z=z1,types=types1,bonds=bonds1,bond_shift=True)
     system.add_molecule(chain23,x=x23,y=y23,z=z23,types=types23,bonds=bonds23,bond_shift=True)
 
-    chain2, chain3 =  chain23.distribute([range(4,8),range(8,12)])
+    chain2, chain3 =  chain23.distribute_by_index([range(4,8),range(8,12)])
     
     # The new molecules should be their own references
     self.assertIsNot(chain2,chain23)

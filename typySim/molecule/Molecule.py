@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+from typySim.core.cy.cyutil import n_closest
 
 class Molecule(object):
   '''
@@ -57,11 +58,13 @@ class Molecule(object):
   @property
   def indices(self):
     '''List interface for the molecules indices'''
-    return list(self._indices)
+    return self._indices
+    # return list(self._indices) # set
   @indices.setter
   def indices(self,values):
     '''Parameter values must be iteratble.'''
-    self._indices = set(values)
+    # self._indices = set(values) # set
+    self._indices = list(values)
   def isDummy(self):
     '''Check identity against global DummyMolecule sentinel.'''
     return False
@@ -92,7 +95,8 @@ class Molecule(object):
       for i in self.indices:
         if index_mapping[i] !=-1:
           new_indices.append(index_mapping[i])
-      self._indices = set(new_indices)
+      # self._indices = set(new_indices) # set
+      self._indices = new_indices
 
     if not self._indices:
       # Molecule is empty! Signal for removal
@@ -128,7 +132,8 @@ class Molecule(object):
   def add_indices(self,indices):
     '''Add new indices to current molecule. Also updates the system.molecule_map'''
     for index in indices:
-      self._indices.add(index)
+      # self._indices.add(index) # set
+      self._indices.append(index)
       oldMolecule = self.system.molecule_map[index]
       self.system.molecule_map[index] = self
       # If oldMolecule is a not a placeholder, we need to remove 
@@ -139,12 +144,13 @@ class Molecule(object):
   def remove_indices(self,indices):
     ''' Removes indices from current molecule. Potentially updates the system.molecule_map'''
     for index in indices:
-      self._indices.remove(index)
+       #self._indices.remove(index) # set?
+      self._indices.remove(index) 
       if self.system.molecule_map[index] is self:
         self.system.molecule_map[index] = self.system.DummyMolecule
     if not self.isDummy():
       self.reset()
-  def distribute(self,index_groups):
+  def distribute_by_index(self,index_groups):
     '''
     Break this molecule up into smaller molecules of identical type.
 
@@ -162,7 +168,8 @@ class Molecule(object):
     '''
     #Flatten list of lists into a 1-D set
     index_check = set([i for group in index_groups for i in group])
-    if index_check!=self._indices:
+    # if index_check!=self._indices: #set
+    if index_check!=set(self._indices):
       raise ValueError('Mismatch between passed indices and molecule indices.')
 
     new_molecules = []
@@ -173,5 +180,85 @@ class Molecule(object):
       new_molecules.append(new_molecule)
     self.system.remove_molecule(molecule=self,remove_beads=False)
     return new_molecules
+  def distribute_by_type_proximity(self,typeList,box=None):
+    ''' Distribute a single molecule into multiple molecules based on proximity to a bead type
+
+    '''
+    if len(typeList)<2:
+      raise ValueError('Need at least two types to distribute between!')
+
+    if box is None:
+      try:
+        box = self.system.box
+      except AttributeError:
+        raise ValueError('Molecule must be connected to system, or explicit box object must be passed!')
+
+
+    x = self.x.compressed()
+    y = self.y.compressed()
+    z = self.z.compressed()
+    types = self.types.compressed()
+    indices = np.array(self._indices)
+
+
+    # index_groups will be passed to self.distribute_by_index. It must be initialized with the
+    # beads which are pre-grouped because they match a grouping type
+    index_groups = []
+    for i,typeVal in enumerate(typeList):
+      index_groups.append(list(indices[types==typeVal]))
+
+    # Need to combine all typeGroups. These beads are already grouped
+    # as they define the groups themselves
+    mask = (types==typeList[0])
+    for typeVal in typeList[1:]:
+      mask = np.logical_or(mask,types==typeVal)
+
+    # Beads to be grouped
+    x1Array  = x[~mask]
+    y1Array  = y[~mask]
+    z1Array  = z[~mask]
+    indices1 = indices[~mask]
+
+    # Beads which are pre-grouped because they match a proximity type
+    x2Array = x[mask]
+    y2Array = y[mask]
+    z2Array = z[mask]
+    types2  = types[mask]
+
+    for i,(x1,y1,z1) in enumerate(zip(x1Array,y1Array,z1Array)):
+      idex,dist = n_closest(1,x1,y1,z1,x2Array,y2Array,z2Array,box)
+      for j,typeVal in enumerate(typeList):
+        if types2[idex[0]] == typeVal:
+          index_groups[j].append(indices1[i])
+          break
+
+    return self.distribute_by_index(index_groups)
+  def center_of_mass(self,box=None):
+    if box is None:
+      try:
+        box = self.system.box
+      except AttributeError:
+        raise ValueError('Molecule must be connected to system, or explicit box object must be passed!')
+
+    mask = self.x.mask
+    ux = self.system.x[~mask]
+    uy = self.system.y[~mask]
+    uz = self.system.z[~mask]
+
+    imx = self.system.imx[~mask]
+    imy = self.system.imy[~mask]
+    imz = self.system.imz[~mask]
+
+    bx = self.system.box.lx
+    by = self.system.box.ly
+    bz = self.system.box.lz
+
+    ux = ux - imx*bx
+    uy = uy - imy*by
+    uz = uz - imz*bz
+
+    return np.mean(ux),np.mean(uy),np.mean(uz)
+
+
 
 

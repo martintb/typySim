@@ -4,9 +4,7 @@ from typySim.geometry import linalg
 import numpy as np
 import random
 
-import ipdb as pdb; 
-import os; eexit = os._exit
-ist = pdb.set_trace
+import ipdb as ipdb; ist = ipdb.set_trace
 
 
 class EndGrowthMove(MonteCarloMove):
@@ -29,6 +27,7 @@ class EndGrowthMove(MonteCarloMove):
     growth_y = self.system.y[growth_index]
     growth_z = self.system.z[growth_index]
     growth_type = self.system.types[growth_index]
+    growth_mol = self.system.molecule_map[growth_index]
     
     # generate random position. The magic at the end of the line transforms the size (3,) array
     # to a size (3,1) array which is important for the wrapping step.
@@ -69,13 +68,28 @@ class EndGrowthMove(MonteCarloMove):
         self.system.types[growth_index] = self.chain_middle_type
 
         #add new index to chain molecule
-        self.system.molecule_map[growth_index].add_indices(new_index)
+        # self.system.molecule_map[growth_index].add_indices(new_index)
+        growth_mol.add_indices(new_index)
+
+        growth_mol.properties['chain_ends'].append(new_index[0])
+        if growth_mol.size>2: #Needs to be two because we just added a bead
+          growth_mol.properties['chain_ends'].remove(growth_index)
+
       else: # attaching bead to surface
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
         NewChainSegment.indices = new_index
-        NewChainSegment.properties['tail'] = True
+        NewChainSegment.properties['topology']                   = 'tail'
+        NewChainSegment.properties['connected_to'][new_index[0]] = {'index':growth_index,'molecule':growth_mol}
+        NewChainSegment.properties['chain_ends']                 = [new_index[0]]
         self.system.add_molecule(NewChainSegment)
+
+      # XXX This should probably be called after every success of this move, but
+      #     will likely cause performance loss. An alternative would be to be rigorous
+      #     about calling reset() on each molecule that we work with. This is only
+      #     a problem when the number of beads in the system changes, as this event
+      #     causes the masked arrays to become stale (i.e. incorrectly sized)
+      self.system.reset_all_molecules()
 
     mc_move_data['string'] = 'end_growth'
     mc_move_data['U'] = Unew
