@@ -4,8 +4,11 @@
 import numpy as np
 cimport numpy as np
 cimport cython
-from typySim.core.cy import CellList
-from libc.math cimport fabs as c_fabs
+
+from typySim.core import CellList
+from libc.math cimport fabs  as c_fabs
+from libc.math cimport ceil  as c_ceil
+from libc.math cimport floor as c_floor
 
 cdef class Box:
   ''' 
@@ -37,12 +40,6 @@ cdef class Box:
       is not specified, no neighborlist is created. 
 
   '''
-  # cdef object system,neighbor_list
-  # cdef double _lx,_ly,_lz
-  # cdef double _half_lx,_half_ly,_half_lz
-  # cdef double _xlo,_xhi
-  # cdef double _ylo,_yhi
-  # cdef double _zlo,_zhi
   def __init__(self,L=-1,cell_grid=None):
     self.system = None
     self._lx=L
@@ -220,10 +217,13 @@ cdef class Box:
   ###################
   # PYTHON WRAPPERS #
   ###################
-  def wrap_all_positions(self):
+  def wrap_all_positions(self,wrap_long=False):
     ''' Convenience function to wrapping all system positions back into the box. '''
 
-    (x,y,z),(imx,imy,imz) = self.wrap_positions(self.system.x,self.system.y,self.system.z)
+    if wrap_long:
+      (x,y,z),(imx,imy,imz) = self.wrap_positions_long(self.system.x,self.system.y,self.system.z)
+    else:
+      (x,y,z),(imx,imy,imz) = self.wrap_positions(self.system.x,self.system.y,self.system.z)
     self.system.x = x
     self.system.y = y
     self.system.z = z
@@ -233,13 +233,16 @@ cdef class Box:
     self.system.reset_all_molecules()
 
   def wrap_positions(self,double[:] x, double[:] y, double[:] z):
-    ''' Wraps *coordinate* up to one box-length in each direction.
+    ''' Wraps *coordinate* up to **one** image distance away from the central image
 
     .. Warning::
       This function only wraps "once". This means that if a bead is several
       box distances away from the central box in one or more directions, this function
       would have to be called *multiple* times to wrap the position into the central
-      image. 
+      image. Use :func:`typySim.core.cy.Box.Box.wrap_positions_long` if there is a chance 
+      of this situation
+
+
 
     '''
     cdef long natoms = x.shape[0]
@@ -273,6 +276,52 @@ cdef class Box:
         imz[i]   += 1
     return (nx,ny,nz),(imx,imy,imz)
 
+  def wrap_positions_long(self,double[:] x, double[:] y, double[:] z):
+    ''' Wraps *coordinate* into the central image
+
+    .. Warning::
+      This function is less efficient than :func:`self.wrap_positions` and should
+      and should be avoided unless long wrapping is necessary.
+    '''
+    cdef long natoms = x.shape[0]
+    cdef long[:] imx = np.zeros(natoms,dtype=int)
+    cdef long[:] imy = np.zeros(natoms,dtype=int)
+    cdef long[:] imz = np.zeros(natoms,dtype=int)
+    cdef double[:] nx = x.copy()
+    cdef double[:] ny = y.copy()
+    cdef double[:] nz = z.copy()
+    cdef long i
+    cdef long image #image will be the signed image the unwrapped bead is in
+    for i in range(natoms):
+      if nx[i] > self._xhi:
+        image     = <long> c_ceil((nx[i] - self._xhi)/self._lx)
+        nx[i]    -= image*self._lx
+        imx[i]   += image
+      elif nx[i] < self._xlo:
+        image     = <long> c_floor((nx[i] - self._xlo)/self._lx)
+        nx[i]    -= image*self._lx
+        imx[i]   += image
+
+      if ny[i] > self._yhi:
+        image     = <long> c_ceil((ny[i] - self._yhi)/self._ly)
+        ny[i]    -= image*self._ly
+        imy[i]   += image
+      elif ny[i] < self._ylo:
+        image     = <long> c_floor((ny[i] - self._ylo)/self._ly)
+        ny[i]    -= image*self._ly
+        imy[i]   += image
+
+      if nz[i] > self._zhi:
+        image     = <long> c_ceil((nz[i] - self._zhi)/self._lz)
+        nz[i]    -= image*self._lz
+        imz[i]   += image
+      elif nz[i] < self._zlo:
+        image     = <long> c_floor((nz[i] - self._zlo)/self._lz)
+        nz[i]    -= image*self._lz
+        imz[i]   += image
+
+    return (nx,ny,nz),(imx,imy,imz)
+
   def wrap_distances(self,double[:] dx, double[:] dy, double[:] dz):
     ''' Wraps *distances* up to one box length in each direction.
 
@@ -300,6 +349,41 @@ cdef class Box:
       idz = c_fabs(dz[i])
       if idz > self._half_lz:
         idz    -= self._lz
+
+      dist.append(((idx*idx) + (idy*idy) + (idz*idz))**(0.5))
+
+    return dist
+
+  def wrap_distances_long(self,double[:] dx, double[:] dy, double[:] dz):
+    ''' Wraps *distances*
+
+    .. Warning::
+      This function is less efficient than :func:`self.wrap_distances` and should
+      and should be avoided unless long wrapping is necessary.
+
+    '''
+    cdef long natoms = dx.shape[0]
+    cdef double idx,idy,idz
+    cdef long i
+    cdef double image
+    cdef list dist = []
+
+    for i in range(natoms):
+      idx = c_fabs(dx[i])
+      if idx > self._half_lx:
+        image   = c_ceil((idx - self._xhi)/self._lx)
+        idx    -= image*self._lx
+
+
+      idy = c_fabs(dy[i])
+      if idy > self._half_ly:
+        image   = c_ceil((idy - self._yhi)/self._ly)
+        idy    -= image*self._ly
+
+      idz = c_fabs(dz[i])
+      if idz > self._half_lz:
+        image   = c_ceil((idz - self._zhi)/self._lz)
+        idz    -= image*self._lz
 
       dist.append(((idx*idx) + (idy*idy) + (idz*idz))**(0.5))
 
