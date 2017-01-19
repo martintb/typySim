@@ -35,20 +35,24 @@ class System(object):
       A list containing all molecules that have been added to the system. 
 
   molecule_map : object ndarray, size (nbeads)
-      A dictionary mapping between bead index and the molecule that is 
+      A mapping between bead index and the molecule that is 
       associated with that bead index. A consequence of this data_structure 
       is that each bead index can only belong to one molecule at a time.
+
+  molecule_types : object dictionary
+      A dictionary mapping between a molecule name, and all of the molecules
+      of that name which exist in this :class:`typySim.core.System`.
 
   bonds :  int ndarray, size (nbeads,max_nbonds)
       A list of bonds  for each beads. Each bond list should be sorted with
       -1 values signifying that no bond is present. 
 
   box : object
-      A :class:`Box` object which handles all periodic wrapping and 
+      A :class:`typySim.core.Box` object which handles all periodic wrapping and 
       distance calculation.
 
   engine : object
-      A :class:`Engine` object which handles updating and modifying the system a
+      A :class:`typySim.engine.Engine` object which handles updating and modifying the system a
       according to a predefined scheme. 
 
   DummyMolecule : object
@@ -63,11 +67,12 @@ class System(object):
     self.x              = np.array([],dtype=np.float)
     self.y              = np.array([],dtype=np.float)
     self.z              = np.array([],dtype=np.float)
-    self.imx              = np.array([],dtype=np.int)
-    self.imy              = np.array([],dtype=np.int)
-    self.imz              = np.array([],dtype=np.int)
+    self.imx            = np.array([],dtype=np.int)
+    self.imy            = np.array([],dtype=np.int)
+    self.imz            = np.array([],dtype=np.int)
     self.types          = np.array([],dtype=np.int)
     self.molecule_map   = np.array([],dtype=object)
+    self.molecule_types = dict()
     self.molecules      = list()
     self.computes       = list()
     self.bonds = BondList()
@@ -327,13 +332,18 @@ class System(object):
     molecule.system = self
     self.molecule_map[molecule.indices] = molecule
     self.molecules.append(molecule)
+    
+    if molecule.name in self.molecule_types:
+      self.molecule_types[molecule.name].append(molecule)
+    else:
+      self.molecule_types[molecule.name] = [molecule]
 
-    # # Since new beads have been (possibly) added, it's necessary 
-    # # to recreate all of the masked arrays of all of the molecules
-    # if kwargs:
-    #   self.reset_all_molecules()
-    # else:
-    self.molecules[-1].reset()
+    # If new beads have been added, it's necessary  to recreate all of the masked arrays 
+    # of all of the molecules so that the masked arrays are pointing to the correct memory.
+    if kwargs:
+      self.reset_all_molecules()
+    else:
+      self.molecules[-1].reset()
   def remove_molecule(self,molecule=None,index=None,remove_beads=False):
     ''' 
     Removes a reference molecule, and possible the beads that it references,
@@ -359,17 +369,27 @@ class System(object):
     if (molecule is not None) and (index is not None):
       raise ValueError('Both an index and a molecule object is supplied. Unsure of which to remove.')
     
+    # Molecule was specified so we need to search for the index
     if molecule is not None:
       for i,mol in enumerate(self.molecules):
         if mol is molecule:
           index = i
           break
-
+    # If index is still None, we didn't find the molecule in the molecule list, so something is wrong
     if index is None:
-      raise ValueError('Supplied molecule was not found in the molecule list.')
-
+      raise ValueError('Supplied molecule was not found in the self.molecule list.')
+    # Yay, we have the index, let's remove is from the list
     removed_mol = self.molecules.pop(index)
 
+    # We also need to purge the molecule from the molecule_types list
+    index2 = None
+    for i,mol in enumerate(self.molecule_types[molecule.name]):
+      if mol is removed_mol:
+        index2 = i
+        break
+    if index2 is None:
+      raise ValueError('Supplied molecule was not found in the self.molecule_types list.')
+    self.molecule_types[molecule.name].pop(index2)
 
     if remove_beads is True:
       index_mapping = self.remove_beads(removed_mol.indices)
@@ -386,7 +406,24 @@ class System(object):
     raise ValueError('Could not find a compute with name {}'.format(name))
   def add_compute(self,compute):
     self.computes.append(compute)
+  def get_random_molecule(self,name=None):
+    '''Return a random molecule with the option of restricting to a specific molecule type
 
+    Parameters
+    ----------
+    name : str, *Optional*
+        If specified, this function will randomly pick until a molecule of the correct type is specified.
+      
+    '''
+    count = 0
+    while True:
+      mol_choice = np.random.choice(self.molecules)
+      if (name is None) or (mol_choice.name == name):
+        break
+      elif count>10000:
+        raise RuntimeError('Could not find a molecule with name {} in the molecule list.'.format(name))
+      count +=1
+    return mol_choice
 
     
 
