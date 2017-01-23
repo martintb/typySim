@@ -4,6 +4,9 @@ class MonteCarloMove(object):
     self.engine = None
     self.system = None
     self.name = 'BaseMonteCarloMove'
+  def set_engine(self,engine):
+    self.engine = engine
+    self.system = engine.system
   def attempt(self):
     raise NotImplementedError('{} has not implemented \'attempt\' method!'.format(self.name))
   @staticmethod
