@@ -10,11 +10,13 @@ class Selection(object):
     else:
       indices = arange(self.system.nbeads)
     return choice(indices)
-  def random_molecule(self,names=None):
-    if names is not None:
-      molecules = [mol for mol in self.system.molecules if mol.name in names]
-    else:
-      molecules = self.system.molecules
+  def random_molecule(self,names=[None]):
+    molecules = []
+    for name in names:
+      if name is None:
+        molecules.extend(self.system.molecules)
+      else:
+        molecules.extend(self.system.molecule_types[name])
     return choice(molecules)
 
 

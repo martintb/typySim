@@ -3,6 +3,8 @@ import logging
 import cPickle
 import numpy as np
 
+import ipdb; ist = ipdb.set_trace
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -31,8 +33,7 @@ class MonteCarlo(object):
     self.rates['total_accepted'] = 0
     self.logger = logging.getLogger(__name__)
   def add_move(self,move):
-    move.engine = self
-    move.system = self.system
+    move.set_engine(self)
     self.moveList.append(move)
     if not (move.name in self.rates):
       self.rates[move.name] = 0
@@ -58,8 +59,6 @@ class MonteCarlo(object):
 
     if pkl_rate is not None:
       pkl = {}
-
-
 
     self.TPE = self.system.get_compute('TotalPotentialEnergy')
     self.TPE_list = []
@@ -97,16 +96,25 @@ class MonteCarlo(object):
 
       if (pkl_rate is not None) and (i%pkl_rate)==0:
         pkl[i] = {}
-        pkl[i]['x'] = np.array(self.system.x)
-        pkl[i]['y'] = np.array(self.system.y)
-        pkl[i]['z'] = np.array(self.system.z)
-        pkl[i]['imx'] = np.array(self.system.imx)
-        pkl[i]['imy'] = np.array(self.system.imy)
-        pkl[i]['imz'] = np.array(self.system.imz)
-        pkl[i]['t'] = np.array(self.system.types)
-        pkl[i]['L'] = np.array(self.system.box.L)
-        pkl[i]['bonds'] = np.array(self.system.bonds.get_pairlist())
+        pkl[i]['nbeads']    = np.array(self.system.nbeads)
+        pkl[i]['L']         = np.array(self.system.box.L)
         pkl[i]['move_data'] = mc_move_data
+        pkl[i]['x']         = np.array(self.system.x)
+        pkl[i]['y']         = np.array(self.system.y)
+        pkl[i]['z']         = np.array(self.system.z)
+        pkl[i]['imx']       = np.array(self.system.imx)
+        pkl[i]['imy']       = np.array(self.system.imy)
+        pkl[i]['imz']       = np.array(self.system.imz)
+        pkl[i]['types']     = np.array(self.system.types)
+        pkl[i]['bonds']     = np.array(self.system.bonds.get_pairlist())
+        pkl[i]['molecules'] = []
+        for mol in self.system.molecules:
+          mol_dict = {}
+          mol_dict['name']       = mol.name
+          mol_dict['indices']    = mol.indices
+          mol_dict['properties'] = mol.properties
+          pkl[i]['molecules'].append(mol_dict)
+
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']

@@ -23,11 +23,11 @@ class EndGrowthMove(MonteCarloMove):
     Uold = self.engine.TPE_list[-1]
 
     growth_index = self.system.select.random_index(types=self.growth_types)
-    growth_x = self.system.x[growth_index]
-    growth_y = self.system.y[growth_index]
-    growth_z = self.system.z[growth_index]
-    growth_type = self.system.types[growth_index]
-    growth_mol = self.system.molecule_map[growth_index]
+    growth_x     = self.system.x[growth_index]
+    growth_y     = self.system.y[growth_index]
+    growth_z     = self.system.z[growth_index]
+    growth_type  = self.system.types[growth_index]
+    growth_mol   = self.system.molecule_map[growth_index]
     
     # generate random position. The magic at the end of the line transforms the size (3,) array
     # to a size (3,1) array which is important for the wrapping step.
@@ -76,11 +76,12 @@ class EndGrowthMove(MonteCarloMove):
           growth_mol.properties['chain_ends'].remove(growth_index)
 
       else: # attaching bead to surface
+        mol_index = np.where(self.system.molecules==growth_mol)[0]
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
         NewChainSegment.indices = new_index
         NewChainSegment.properties['topology']                   = 'tail'
-        NewChainSegment.properties['connected_to'][new_index[0]] = {'index':growth_index,'molecule':growth_mol}
+        NewChainSegment.properties['connected_to'][new_index[0]] = {'index':growth_index,'molecule':mol_index}
         NewChainSegment.properties['chain_ends']                 = [new_index[0]]
         self.system.add_molecule(NewChainSegment)
 

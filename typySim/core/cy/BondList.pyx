@@ -114,7 +114,7 @@ cdef class BondList:
         new_j = j
 
       if bond_num==(self.max_bonds_perbead-1):
-        raise ValueError('Too many bonds to bead {} when adding bead {}: {}'.format(bondi,bondj,self.bonds[bondi]))
+        raise ValueError('Too many bonds to bead {} when adding bead {}: {}'.format(bondi,bondj,np.array(self.bonds[bondi])))
   cdef void excise_bond(self,long bondi,long bondj):
     cdef long new_j = bondj
     cdef long j,bond_num

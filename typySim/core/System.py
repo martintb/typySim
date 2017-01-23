@@ -1,4 +1,5 @@
 import numpy as np
+from typySim.molecule import molecule_name_map
 from typySim.molecule import DummyMolecule
 from typySim.core import Selection
 from typySim.core import BondList
@@ -17,8 +18,7 @@ class System(object):
   ----------
   nbeads : int
       Current number of beads in the simulation
-
-  x,y,z : float ndarrary, size (nbeads)
+x,y,z : float ndarrary, size (nbeads)
       Arrays of bead cartesian coordinate positions
 
   imx,imy,imz : int ndarrary, size (nbeads)
@@ -291,9 +291,9 @@ class System(object):
     self.x            = np.delete(self.x,indices)
     self.y            = np.delete(self.y,indices)
     self.z            = np.delete(self.z,indices)
-    self.imx            = np.delete(self.imx,indices)
-    self.imy            = np.delete(self.imy,indices)
-    self.imz            = np.delete(self.imz,indices)
+    self.imx          = np.delete(self.imx,indices)
+    self.imy          = np.delete(self.imy,indices)
+    self.imz          = np.delete(self.imz,indices)
     self.types        = np.delete(self.types,indices)
     self.molecule_map = np.delete(self.molecule_map,indices)
 
@@ -406,24 +406,21 @@ class System(object):
     raise ValueError('Could not find a compute with name {}'.format(name))
   def add_compute(self,compute):
     self.computes.append(compute)
-  def get_random_molecule(self,name=None):
-    '''Return a random molecule with the option of restricting to a specific molecule type
+  def from_pkl(self,pkl):
+    keys = ['x','y','z','imx','imy','imz','types','bonds']
 
-    Parameters
-    ----------
-    name : str, *Optional*
-        If specified, this function will randomly pick until a molecule of the correct type is specified.
-      
-    '''
-    count = 0
-    while True:
-      mol_choice = np.random.choice(self.molecules)
-      if (name is None) or (mol_choice.name == name):
-        break
-      elif count>10000:
-        raise RuntimeError('Could not find a molecule with name {} in the molecule list.'.format(name))
-      count +=1
-    return mol_choice
+    molData = {}
+    for key in keys:
+      molData[key] = pkl[key]
+    self.add_beads(**molData)
+    
+    for molData in pkl['molecules']:
+      molType = molecule_name_map[molData['name']]
+
+      mol = molType()
+      mol.indices    = molData['indices']
+      mol.properties = molData['properties']
+      self.add_molecule(mol)
 
     
 

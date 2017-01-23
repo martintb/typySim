@@ -5,7 +5,7 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
-from typySim.core import CellList
+from CellList import CellList
 from libc.math cimport fabs  as c_fabs
 from libc.math cimport ceil  as c_ceil
 from libc.math cimport floor as c_floor
