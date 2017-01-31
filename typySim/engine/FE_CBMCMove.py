@@ -14,7 +14,7 @@ class FE_CBMCMove(MonteCarloMove):
   '''
   Definitions
   -----------
-  local index :  [0,len(regrowth_mol.indices))
+  local index :  [0,len(mol.indices))
     Integer ranging between 0 and the length of the chain being regrown. Used
     to access the indices and data arrays for the regrowing chain.
 
@@ -22,7 +22,7 @@ class FE_CBMCMove(MonteCarloMove):
     Global index of a bead in the system arrays (e.g. self.system.x ). This 
     value ranges from .
 
-  new index : [self.system.nbeads,self.system.nbeads+len(regrowth_mol.indices))
+  new index : [self.system.nbeads,self.system.nbeads+len(mol.indices))
     Global index of the trial_move bead. This value ranges from self.system to
     the number of beads being regrown
 
@@ -41,12 +41,12 @@ class FE_CBMCMove(MonteCarloMove):
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
     self.regrowth_max = regrowth_max
-    self.chain1 = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias)
+    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias)
   def set_engine(self,engine):
     self.engine               = engine
     self.system               = engine.system
-    self.chain1.engine        = engine
-    self.chain1.system        = engine.system
+    self.rosen_chain.engine   = engine
+    self.rosen_chain.system   = engine.system
   @MonteCarloMove.counter
   def attempt(self):
     mc_move_data = {}
@@ -55,8 +55,8 @@ class FE_CBMCMove(MonteCarloMove):
     ## DETERMINE REGROWTH INDICES##
     ################################
     # Choose a chain molecule and a starting point
-    regrowth_mol = self.system.select.random_molecule(names=['ChainSegment'])
-    indices = list(regrowth_mol.indices)
+    mol = self.system.select.random_molecule(names=['ChainSegment'])
+    indices = list(mol.indices)
     chain_length = len(indices)
 
     if chain_length<self.regrowth_min+2:
@@ -64,25 +64,23 @@ class FE_CBMCMove(MonteCarloMove):
       mc_move_data['string'] = 'chain_is_too_short'
       return accept,mc_move_data
 
-    self.chain1.set_indices(regrowth_mol,internal_growth=True)
-    self.chain1.build_old_arrays()
-    self.chain1.new_bonds   = self.chain1.old_bonds
-    self.chain1.new_anchors = self.chain1.old_anchors
-    self.chain1.new_beacons = self.chain1.old_beacons
+    self.rosen_chain.set_indices(mol.indices,internal_growth=True)
+    self.rosen_chain.build_arrays()
+    self.rosen_chain.copy_retrace_to_regrowth()
 
     ################################
     ## INITIAL ENERGY CALCULATION ##
     ################################
     # Need to calculate the base energy of the system that we are regrowing into
     UOld    = self.engine.TPE_list[-1]
-    URegrow = self.engine.TPE.compute(partial_indices=self.chain1.regrowth_indices)
+    URegrow = self.engine.TPE.compute(partial_indices=self.rosen_chain.indices)
     UBase   = UOld-sum(URegrow)
 
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    rosen_weights_new,trial_data,bias_weights_new = self.chain1.calc_rosenbluth(UBase,retrace=False)
-    if trial_data['abort']:
+    abort,rosen_weights_new,bias_weights_new = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    if abort:
       mc_move_data['string'] = 'bad_trial_move_new'
       accept = False
       return accept,mc_move_data
@@ -90,8 +88,8 @@ class FE_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    rosen_weights_old,old_trial_data,bias_weights_old = self.chain1.calc_rosenbluth(UBase,retrace=True)
-    if old_trial_data['abort']:
+    abort,rosen_weights_old,bias_weights_old = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    if abort:
       mc_move_data['string'] = 'bad_trial_move_old'
       accept = False
       return accept,mc_move_data
@@ -107,7 +105,7 @@ class FE_CBMCMove(MonteCarloMove):
     Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
-    mc_move_data['k'] = self.chain1.regrowth_length
+    mc_move_data['k'] = self.rosen_chain.length
 
     #######################
     ## ACCEPT OR REJECT? ##
@@ -122,18 +120,18 @@ class FE_CBMCMove(MonteCarloMove):
         accept=False
 
     if accept:
-      mc_move_data['U'] = trial_data['U']
-      for local_index,sys_index in enumerate(self.chain1.regrowth_indices):
-        x = trial_data['x'][local_index]
-        y = trial_data['y'][local_index]
-        z = trial_data['z'][local_index]
+      mc_move_data['U'] = self.rosen_chain.acceptance_package['U']
+      for local_index,sys_index in enumerate(self.rosen_chain.indices):
+        x = self.rosen_chain.acceptance_package['x'][local_index]
+        y = self.rosen_chain.acceptance_package['y'][local_index]
+        z = self.rosen_chain.acceptance_package['z'][local_index]
         self.system.x[sys_index] = x
         self.system.y[sys_index] = y
         self.system.z[sys_index] = z
 
-        imx = trial_data['imx'][local_index]
-        imy = trial_data['imy'][local_index]
-        imz = trial_data['imz'][local_index]
+        imx = self.rosen_chain.acceptance_package['imx'][local_index]
+        imy = self.rosen_chain.acceptance_package['imy'][local_index]
+        imz = self.rosen_chain.acceptance_package['imz'][local_index]
         self.system.imx[sys_index] = imx
         self.system.imy[sys_index] = imy
         self.system.imz[sys_index] = imz

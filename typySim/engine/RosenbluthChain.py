@@ -2,6 +2,8 @@ from numpy.random import randint,random,choice
 import numpy as np
 import ipdb; ist = ipdb.set_trace
 
+import copy
+
 class RosenbluthChain(object):
   ''' Configurational Bias Monte Carlo Helper Class
 
@@ -9,8 +11,17 @@ class RosenbluthChain(object):
   conduct Configurational Bias Monte Carlo simulations (CBMC). It also handles
   the rosenbluth calculation itself.
 
-  Definitions
-  -----------
+  .. Note::
+      This is not a chain in the "polymer chain" sense, but rather a "chain" of
+      beads that are being removed and regrown in a "chain". The beads of this chain
+      have no restriction on who or what they are bonded to and could be free beads. 
+
+  Attributes
+  ----------
+  
+
+  Notes
+  -----
   anchor
       The previous position that the current bead is being grown from. This
       could either be the previous bead in the chain, or a point in space. 
@@ -23,60 +34,78 @@ class RosenbluthChain(object):
       guiding bias will be applied based on the distance and number of bonds between
       the current bead and the guide bead.__import__
 
+  regrowth vs retrace
+      Regrowth is the process of sequentially 'growing' random new positions for each bead, choosing
+      the position based on its Boltzmann weight, and tracking the "partition function" of each step.
+      Retrace is the identical process except the "real" position of the bead is included in the list 
+      of options and is always chosen. The goal of the retrace step is simply to calculate the "partition
+      function" of the original configuration. The comparison of these partition function is what determines
+      the acceptance probability of this move. 
+
   '''
-  def __init__(self,num_trials,regrowth_min,regrowth_max,bias):
+  def __init__(self,num_trials,regrowth_min,regrowth_max,bias,viz=None):
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
     self.regrowth_max = regrowth_max
     self.bias         = bias
-    self.trial_indices= np.arange(num_trials,dtype=np.int)
     self.reset()
+    self.viz = viz
   @property
-  def regrowth_length(self):
-    if self.regrowth_indices is None:
-      return None
-    else:
-      return len(self.regrowth_indices)
-  @property
-  def chain_length(self):
+  def length(self):
     if self.indices is None:
       return None
     else:
       return len(self.indices)
   def reset(self):
     self.internal_growth    = None
-    self.molecule           = None
     self.growing_up         = None
+    self.all_indices        = None
+
     self.indices            = None
 
-    # needed for rosenbluth calculation
-    self.regrowth_indices   = None
-    self.old_anchors        = None
-    self.old_beacons        = None
-    self.old_bonds          = None
-  def __iadd__(self,other):
-    self.internal_growth    = [self.internal_growth,other.internal_growth]
-    self.molecule           = [self.molecule,other.molecule]
-    self.growing_up         = [self.growing_up,other.growing_up]
-    self.indices            = [self.indices,other.indices]
+    self.retrace_anchors    = None
+    self.retrace_beacons    = None
+    self.retrace_bonds      = None
+
+    self.regrowth_anchors   = None
+    self.regrowth_beacons   = None
+    self.regrowth_bonds     = None
+
+    self.chain_type   = ''
+
+    self.acceptance_package = {}
+  def combine(self,chain1,chain2):
+    self.internal_growth    = [chain1.internal_growth,chain2.internal_growth]
+    self.growing_up         = [chain1.growing_up     ,chain2.growing_up]
+    self.all_indices        = [chain1.all_indices        ,chain2.all_indices]
 
     # Needed for rosenbluth calculation therefore flat lists are necessary
-    self.regrowth_indices   += other.regrowth_indices
-    self.old_anchors        += other.old_anchors
-    self.old_beacons        += other.old_beacons
-    self.old_bonds          += other.old_bonds
-  def set_indices(self,mol,internal_growth):
-    self.internal_growth = internal_growth
-    self.molecule = mol
+    self.indices                = chain1.indices          + chain2.indices
+    self.retrace_anchors        = chain1.retrace_anchors  + chain2.retrace_anchors
+    self.retrace_beacons        = chain1.retrace_beacons  + chain2.retrace_beacons
+    self.retrace_bonds          = chain1.retrace_bonds    + chain2.retrace_bonds
 
-    if random()>0.5:
+    if (chain1.regrowth_anchors is not None) and (chain2.regrowth_anchors is not None):
+      self.regrowth_anchors = chain1.regrowth_anchors    + chain2.regrowth_anchors
+    if (chain1.regrowth_beacons is not None) and (chain2.regrowth_beacons is not None):
+      self.regrowth_beacons = chain1.regrowth_beacons    + chain2.regrowth_beacons
+    if (chain1.regrowth_bonds is not None) and (chain2.regrowth_bonds is not None):
+      self.regrowth_bonds  =  chain1.regrowth_bonds      + chain2.regrowth_bonds
+  def copy_retrace_to_regrowth(self):
+    self.regrowth_bonds   = copy.deepcopy(self.retrace_bonds)
+    self.regrowth_anchors = self.retrace_anchors[:]
+    self.regrowth_beacons = self.retrace_beacons[:]
+  def set_indices(self,indices,internal_growth,random_inversion=True):
+    self.internal_growth = internal_growth
+
+    if random_inversion and random()>0.5:
       self.growing_up = False
-      self.indices = mol.indices[::1]
+      self.all_indices = indices[::-1]
     else:
       self.growing_up = True
-      self.indices = mol.indices[::-1]
+      self.all_indices = indices[::1]
 
-    chain_length = len(self.indices)
+    chain_length = len(self.all_indices)
 
     #Note that randint is [low,high)
     start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
@@ -86,85 +115,170 @@ class RosenbluthChain(object):
     else:
       end_index_local = chain_length-1 
 
-    self.regrowth_indices       = self.indices[start_index_local:(end_index_local+1)] #self
+    self.indices                = self.all_indices[start_index_local:(end_index_local+1)] #self
+    self.low_indices            = self.all_indices[:start_index_local] #self
+    self.high_indices           = self.all_indices[(end_index_local+1):] #self
   def get_outer_bonds(self,sys_index,new_index):
-    bonds = []
+    old_bonds = []
+    new_bonds = []
     for bond_j in list(self.system.bonds.bonds[sys_index]):
       if bond_j==-1:
         break
-      elif bond_j not in self.regrowth_indices:
-        bonds.append([bond_j,new_index])
-    return bonds
-  def build_old_arrays(self,index_shift=0):
-    last_local_index = (self.regrowth_length-1)
+      elif bond_j not in self.indices:
+        new_bonds.append([bond_j,new_index])
+        old_bonds.append([bond_j,sys_index])
+    return old_bonds,new_bonds
+  def build_arrays(self,index_shift=0):
+    last_local_index = (self.length-1)
 
     ###########
     ## BONDS ##
     ###########
-    self.old_bonds          = [] 
-    for local_index,sys_index in enumerate(self.regrowth_indices):
+    self.retrace_bonds = [] 
+    for local_index,sys_index in enumerate(self.indices):
       new_index = local_index + self.system.nbeads + index_shift
-      if local_index == 0:
-        self.old_bonds.append([])
-      else:
-        self.old_bonds.append(list(self.old_bonds[local_index-1]))
+      self.retrace_bonds.append([])
 
-      ## Inner Bonds
+      # Inner Bonds
       if local_index>0:
-          self.old_bonds[local_index].append([new_index-1,new_index])
+          self.retrace_bonds[local_index].append([new_index-1,new_index])
 
-      ## Outer Bonds
+      # Outer Bonds
       if (local_index==0) or (local_index==last_local_index):
-        outer_bonds = self.get_outer_bonds(sys_index,new_index)
-        if len(outer_bonds)==1:
-          self.old_bonds[local_index].extend(outer_bonds)
-        elif len(outer_bonds)>1:
+        outer_bonds_old,outer_bonds_new = self.get_outer_bonds(sys_index,new_index)
+        if len(outer_bonds_new)==1:
+          self.retrace_bonds[local_index].extend(outer_bonds_new)
+        elif len(outer_bonds_new)>1:
           raise ValueError('Not configured for non-linear polymers!')
 
     #############
     ## ANCHORS ##
     #############
-    self.old_anchors = [None for _ in self.regrowth_indices]
+    self.retrace_anchors = [None for _ in self.indices]
     try:
       # [0][0][0] = [first regrowth step][first bond on this step][first bead of first bond]
-      self.old_anchors[0] = self.old_bonds[0][0][0] #should be a sys_index
+      self.retrace_anchors[0] = self.retrace_bonds[0][0][0] #should be a sys_index
     except IndexError:
       raise ValueError('No bond at zero index. typySim is not configured to regrow entire chain!')
 
     #############
     ## BEACONS ##
     #############
-    if self.internal_growth:
-      # [last_local_index][1][0] = [last regrowth step][second bond on this step][first bead of first bond]
+    if len(self.retrace_bonds[-1])>1:
+      # [-1][1][0] = [last regrowth step][second bond on this step][first bead of first bond]
       # We want the last bond because it should be the external bond
-      beacon = self.old_bonds[last_local_index][-1][0] #should be a sys_index
-      self.old_beacons = [(beacon,self.regrowth_length-i) for i,_ in enumerate(self.regrowth_indices)]
+      beacon = self.retrace_bonds[-1][-1][0] #should be a sys_index
+      self.retrace_beacons = [(beacon,self.length-i) for i,_ in enumerate(self.indices)]
     else:
-      self.old_beacons = [None for _ in self.regrowth_indices]
+      self.retrace_beacons = [None for _ in self.indices]
+  def roll_steplist(self,steplist):
+    ''' 
+    Takes a list that represents sequential additions and rolls it into
+    a compelete list of all additions at each step.
+
+    .. Example::
+
+        >>> A = [[1],[2],[3,3.5],[4]]
+        >>> B = roll_steplist(A)
+        [[1], [1,2], [1,2,3,3.5],[1,2,3,3.5,4]]
+    '''
+    rolled_list = []
+    num_steps = len(steplist)
+    for step in range(num_steps):
+      chunklist = []
+      for chunk in steplist[:(step+1)]:
+        chunklist.extend([val for val in chunk])
+      rolled_list.append(chunklist)
+    return rolled_list
+  def draw_trial(self,anchor_x,anchor_y,anchor_z,orig_x,orig_y,orig_z,trial_x,trial_y,trial_z,local_index):
+    self.viz.clear()
+    x = self.system.x
+    y = self.system.y
+    z = self.system.z
+    t = self.system.types
+    self.viz.draw_glyphs(x,y,z,t)
+
+    x=trial_x[0,:(local_index+1)]
+    y=trial_y[0,:(local_index+1)]
+    z=trial_z[0,:(local_index+1)]
+    t=np.ones_like(x)*8
+    self.viz.draw_glyphs(x,y,z,t)
+
+    # x=trial_x[0,:local_index]
+    # y=trial_y[0,:local_index]
+    # z=trial_z[0,:local_index]
+    # t=np.ones_like(x)*8
+    # self.viz.draw_glyphs(x,y,z,t)
+
+    # x=trial_x[:,local_index]
+    # y=trial_y[:,local_index]
+    # z=trial_z[:,local_index]
+    # t=np.ones_like(x)*9
+    # self.viz.draw_glyphs(x,y,z,t)
+
+    x=orig_x
+    y=orig_y
+    z=orig_z
+    t=np.ones_like(x)*10
+    self.viz.draw_glyphs(x,y,z,t)
+
+    if anchor_x:
+      x=anchor_x
+      y=anchor_y
+      z=anchor_z
+      t=np.ones_like(x)*7
+      self.viz.draw_glyphs(x,y,z,t)
+
+    # mols = list(set([self.system.molecule_map[i] for i in self.indices]))
+    # com1 = [mol.properties['center_of_mass'] for mol in mols]
+    # [mol.reset() for mol in mols]
+    # com2 = [mol.properties['center_of_mass'] for mol in mols]
+    # print 'COM:',com1,com2
+    # if com1:
+    #   com = np.array(com1)
+    #   x=com[:,0]
+    #   y=com[:,1]
+    #   z=com[:,2]
+    #   t=np.ones_like(x)*6
+    #   self.viz.draw_glyphs(x,y,z,t)
+
+    #   com = np.array(com2)
+    #   x=com[:,0]
+    #   y=com[:,1]
+    #   z=com[:,2]
+    #   t=np.ones_like(x)*6
+    #   self.viz.draw_glyphs(x,y,z,t)
+
+    self.viz.show(blocking=True,resetCamera=True)
+
   def calc_rosenbluth(self,UBase,retrace=False):
-    trial_data = {}
-    trial_data['abort'] = False
+    abort = False
+
+    trial_indices= np.arange(self.num_trials,dtype=np.int)
 
     if retrace:
-      bonds   = self.old_bonds
-      beacons = self.old_beacons
-      anchors = self.old_anchors
+      bonds   = self.roll_steplist(self.retrace_bonds)
+      # bonds   = self.retrace_bonds
+      beacons = self.retrace_beacons
+      anchors = self.retrace_anchors
     else:
-      bonds   = self.new_bonds
-      beacons = self.new_beacons
-      anchors = self.new_anchors
+      bonds   = self.roll_steplist(self.regrowth_bonds)
+      # bonds   = self.regrowth_bonds
+      beacons = self.regrowth_beacons
+      anchors = self.regrowth_anchors
 
-    trial_x     = np.empty((self.num_trials,self.regrowth_length),dtype=np.float)
-    trial_y     = np.empty((self.num_trials,self.regrowth_length),dtype=np.float)
-    trial_z     = np.empty((self.num_trials,self.regrowth_length),dtype=np.float)
-    trial_imx   = np.empty((self.num_trials,self.regrowth_length),dtype=np.int)
-    trial_imy   = np.empty((self.num_trials,self.regrowth_length),dtype=np.int)
-    trial_imz   = np.empty((self.num_trials,self.regrowth_length),dtype=np.int)
-    trial_types = np.empty((self.num_trials,self.regrowth_length),dtype=np.int)
+
+    trial_x     = np.empty((self.num_trials,self.length),dtype=np.float)
+    trial_y     = np.empty((self.num_trials,self.length),dtype=np.float)
+    trial_z     = np.empty((self.num_trials,self.length),dtype=np.float)
+    trial_imx   = np.empty((self.num_trials,self.length),dtype=np.int)
+    trial_imy   = np.empty((self.num_trials,self.length),dtype=np.int)
+    trial_imz   = np.empty((self.num_trials,self.length),dtype=np.int)
+    trial_types = np.empty((self.num_trials,self.length),dtype=np.int)
 
     rosen_weights = []
     bias_weights = []
-    for local_index,sys_index in enumerate(self.regrowth_indices):
+    for local_index,sys_index in enumerate(self.indices):
       ###########
       ## BONDS ##
       ###########
@@ -241,8 +355,8 @@ class RosenbluthChain(object):
           bonds=trial_bonds,
           )
 
-      #calculation will ignore regrowth_indices and individually calculate the PE for each trial bead
-      UList = self.engine.TPE.compute( trial_move=True, partial_indices=self.regrowth_indices, ntrials=self.num_trials)
+      #calculation will ignore indices and individually calculate the PE for each trial bead
+      UList = self.engine.TPE.compute( trial_move=True, partial_indices=self.indices, ntrials=self.num_trials)
       trial_potential_energies = np.add(np.sum(UList,axis=0),UBase)
       rosen_weights.append(np.exp(np.negative(trial_potential_energies)))
 
@@ -252,9 +366,18 @@ class RosenbluthChain(object):
       if beacons[local_index] is not None:
         end_index,nbonds = beacons[local_index]
 
-        end_x = self.system.x[end_index]
-        end_y = self.system.y[end_index]
-        end_z = self.system.z[end_index]
+        if end_index>self.system.nbeads:
+          end_index-=self.system.nbeads
+          if end_index>=local_index:
+            ist()
+            raise ValueError('Ill specified beacon. Can\'t use beacon that hasn\'t been grown yet!')
+          end_x = trial_x[0,end_index]
+          end_y = trial_y[0,end_index]
+          end_z = trial_z[0,end_index]
+        else:
+          end_x = self.system.x[end_index]
+          end_y = self.system.y[end_index]
+          end_z = self.system.z[end_index]
 
         ## Calculate guiding bias for all trial positions
         dx = trial_x[:,local_index] - end_x
@@ -263,8 +386,8 @@ class RosenbluthChain(object):
         dr = np.array([dx,dy,dz])
         all_dist = self.system.box.wrap_distances(dr[0],dr[1],dr[2])
 
-        biasx = self.bias[nbonds]['x']
-        biasy = self.bias[nbonds]['y']
+        biasx = self.bias[nbonds-1]['x']
+        biasy = self.bias[nbonds-1]['y']
         biases = np.interp(all_dist,biasx,biasy,left=0,right=0)
 
         rosen_weights[-1] *= biases
@@ -280,14 +403,31 @@ class RosenbluthChain(object):
       # of a broken configuration.
       # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
       if (not retrace) and np.all(rosen_weights[-1]==0.):
-        trial_data['abort'] = True
-        return rosen_weights,trial_data,None
+        # if self.viz is not None:
+        #   print 'LOCAL/TOTAL:',local_index,'/',self.length-1
+        #   print 'CHAIN_TYPE:',self.chain_type
+        #   print 'TRIAL PEs:'
+        #   print trial_potential_energies
+        #   print 'ULIST'
+        #   print UList
+        #   print 'BIASES'
+        #   print biases
+        #   orig_x = [self.system.x[i] for i in self.indices]
+        #   orig_y = [self.system.y[i] for i in self.indices]
+        #   orig_z = [self.system.z[i] for i in self.indices]
+        #   anchor_x = [self.system.x[i] for i in anchors if i is not None]
+        #   anchor_y = [self.system.y[i] for i in anchors if i is not None]
+        #   anchor_z = [self.system.z[i] for i in anchors if i is not None]
+        #   self.draw_trial(anchor_x,anchor_y,anchor_z,orig_x,orig_y,orig_z,trial_x,trial_y,trial_z,local_index)
+        # ist()
+        abort = True
+        return abort,None,None
 
       if retrace:
         chosen_index = 0
       else:
         trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
-        chosen_index = choice(self.trial_indices,p=trial_probabilities)
+        chosen_index = choice(trial_indices,p=trial_probabilities)
 
       #need the chosen bias weight for the final acceptance
       bias_weights.append(biases[chosen_index])
@@ -305,18 +445,33 @@ class RosenbluthChain(object):
     ######################
     ## WRAP IT UP TO GO ##
     ######################
-    # It doesn't matter which trial_index is chosen as all are equalized at this point. 
-    trial_data['x'] = trial_x[chosen_index,:] 
-    trial_data['y'] = trial_y[chosen_index,:]
-    trial_data['z'] = trial_z[chosen_index,:]
-    trial_data['imx'] = trial_imx[chosen_index,:] 
-    trial_data['imy'] = trial_imy[chosen_index,:]
-    trial_data['imz'] = trial_imz[chosen_index,:]
-    trial_data['U'] = trial_potential_energies[chosen_index]
+    if not retrace:
+      # It doesn't matter which trial_index is chosen as all are equalized at this point. 
+      self.acceptance_package['x']   = trial_x[chosen_index,:] 
+      self.acceptance_package['y']   = trial_y[chosen_index,:]
+      self.acceptance_package['z']   = trial_z[chosen_index,:]
+      self.acceptance_package['imx'] = trial_imx[chosen_index,:] 
+      self.acceptance_package['imy'] = trial_imy[chosen_index,:]
+      self.acceptance_package['imz'] = trial_imz[chosen_index,:]
+      self.acceptance_package['U']   = trial_potential_energies[chosen_index]
 
-    return rosen_weights,trial_data,bias_weights
+      # if self.viz is not None and self.chain_type == 'splice':
+      #   print 'LOCAL/TOTAL:',local_index,'/',self.length-1
+      #   print 'CHAIN_TYPE:',self.chain_type
+      #   print 'TRIAL PEs:'
+      #   print trial_potential_energies
+      #   print 'ULIST'
+      #   print UList
+      #   print 'BIASES'
+      #   print biases
+      #   orig_x = [self.system.x[i] for i in self.indices]
+      #   orig_y = [self.system.y[i] for i in self.indices]
+      #   orig_z = [self.system.z[i] for i in self.indices]
+      #   anchor_x = [self.system.x[i] for i in self.retrace_anchors if i is not None]
+      #   anchor_y = [self.system.y[i] for i in self.retrace_anchors if i is not None]
+      #   anchor_z = [self.system.z[i] for i in self.retrace_anchors if i is not None]
+      #   self.draw_trial(anchor_x,anchor_y,anchor_z,orig_x,orig_y,orig_z,trial_x,trial_y,trial_z,local_index)
+      #   ist()
 
+    return abort,rosen_weights,bias_weights
 
-
-
-    

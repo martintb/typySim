@@ -31,12 +31,17 @@ class MonteCarlo(object):
     self.rates = {}
     self.rates['total_attempted'] = 0
     self.rates['total_accepted'] = 0
+    self.viz = None
     self.logger = logging.getLogger(__name__)
   def add_move(self,move):
     move.set_engine(self)
     self.moveList.append(move)
     if not (move.name in self.rates):
       self.rates[move.name] = 0
+  def remove_move(self,move):
+    self.moveList.remove(move)
+    del self.rates[move.name]
+    del move
   def run(self,num_attempts,log_rate = 5,viz=None,pkl_rate=None,pkl_name='trj.pkl'):
     '''
     Contduct the Monte Carlo simulation.
@@ -53,9 +58,9 @@ class MonteCarlo(object):
     # self.system.neighbor_list.build_nlist(self.system.x,self.s,central_origin=True)
 
     if viz is not None:
-      viz.draw_all(bonds=False)
-      viz.draw_box()
-      viz.show(blocking=False)
+      self.viz = viz
+      viz.draw_system(bonds=True)
+      viz.show(blocking=False,resetCamera=False)
 
     if pkl_rate is not None:
       pkl = {}
@@ -84,15 +89,16 @@ class MonteCarlo(object):
         else:
           color = bcolors.FAIL
         logStr  = color 
-        logStr +='Step {}/{}, rate: {:4.3f} U: {} W: {}'.format(i,num_attempts-1,rate,self.TPE_list[-1],mc_move_data['string']) + bcolors.ENDC
+        # logStr +='Step {}/{}, rate: {:4.3f} U: {} W: {}'.format(i,num_attempts-1,rate,self.TPE_list[-1],mc_move_data['string']) + bcolors.ENDC
+        logStr +='Step {}/{}, rate: {:4.3f} {}'.format(i,num_attempts-1,rate,mc_move_data['string']) + bcolors.ENDC
         logStr += bcolors.ENDC
         self.logger.info(logStr)
 
       if (viz is not None) and success and (i%log_rate)==0:
         viz.clear()
-        viz.draw_all(bonds=False)
-        viz.draw_box()
-        viz.show(blocking=False)
+        # viz.draw_system(bonds=False)
+        viz.draw_system(bonds=True)
+        viz.show(blocking=False,resetCamera=False)
 
       if (pkl_rate is not None) and (i%pkl_rate)==0:
         pkl[i] = {}
@@ -121,6 +127,11 @@ class MonteCarlo(object):
     self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
 
     if pkl_rate is not None:
-      self.logger.info('Logging trajectory to {}'.format(pkl_name))
+      self.logger.log(logging.INFO+1,'Logging trajectory to {}'.format(pkl_name))
       with open(pkl_name,'wb') as f:
         cPickle.dump(pkl,f,-1)
+
+    if (viz is not None):
+      viz.clear()
+      viz.draw_system(bonds=True)
+      viz.show()
