@@ -40,22 +40,31 @@ cdef class Box:
       is not specified, no neighborlist is created. 
 
   '''
-  def __init__(self,L=-1,cell_grid=None):
+  def __init__(self,L=10,cell_grid=None):
     self.system = None
-    self._lx=L
-    self._ly=L
-    self._lz=L
-    self._half_lx=L/2.0
-    self._half_ly=L/2.0
-    self._half_lz=L/2.0
-    self._xlo =-L/2.0
-    self._xhi = L/2.0
-    self._ylo =-L/2.0
-    self._yhi = L/2.0
-    self._zlo =-L/2.0
-    self._zhi = L/2.0
+
+    try:
+      lx = L[0]
+      ly = L[1]
+      lz = L[2]
+    except TypeError:
+      lx = ly = lz = L
+
+    self._lx=lx
+    self._ly=ly
+    self._lz=lz
+    self._half_lx=lx/2.0
+    self._half_ly=ly/2.0
+    self._half_lz=lz/2.0
+    self._xlo =-lx/2.0
+    self._xhi = lx/2.0
+    self._ylo =-ly/2.0
+    self._yhi = ly/2.0
+    self._zlo =-lz/2.0
+    self._zhi = lz/2.0
     if cell_grid is not None:
       self.neighbor_list = CellList(*cell_grid)
+      self.neighbor_list.set_box_size(self._lx,self._ly,self._lz)
     else:
       self.neighbor_list = None
 

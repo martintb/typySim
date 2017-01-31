@@ -38,7 +38,7 @@ cdef class BondList:
     else:
       self.bonds    = np.append(self.bonds, np.full((num,self.max_bonds_perbead),-1,dtype=intType),axis=0)
     self.nbonds = self.bonds.shape[0]
-  def shrink(self,list indices):
+  def shrink(self,indices):
     self.bonds  = np.delete(self.bonds,indices,axis=0)
   def add(self,i,j,shiftVal):
     '''

@@ -395,7 +395,7 @@ x,y,z : float ndarrary, size (nbeads)
       index_mapping = self.remove_beads(removed_mol.indices)
       self.reset_all_molecules(index_mapping['old2new'])
     else:
-      for i in range(self.nbeads):
+      for i in removed_mol.indices:
         if self.molecule_map[i] is removed_mol:
           self.molecule_map[i] = self.DummyMolecule
     return removed_mol
