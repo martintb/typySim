@@ -26,8 +26,7 @@ class MoleculeDistributor(object):
     '''
     #Flatten list of lists into a 1-D set
     index_check = set([i for group in index_groups for i in group])
-    # if index_check!=self._indices: #set
-    if index_check!=set(self.molecule._indices):
+    if index_check!=set(self.molecule.indices):
       raise ValueError('Mismatch between passed indices and molecule indices.')
 
     new_molecules = []
@@ -52,7 +51,7 @@ class MoleculeDistributor(object):
     y = self.molecule.y.compressed()
     z = self.molecule.z.compressed()
     types = self.molecule.types.compressed()
-    indices = np.array(self.molecule._indices)
+    indices = np.array(self.molecule.indices)
 
 
     # index_groups will be passed to self.distribute_by_index. It must be initialized with the

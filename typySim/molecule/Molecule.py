@@ -46,7 +46,7 @@ class Molecule(object):
 
   '''
   def __init__(self):
-    self._indices = None
+    self.indices = None
     self.system = None
     self.x = None
     self.y = None
@@ -62,17 +62,7 @@ class Molecule(object):
     self.properties['center_of_mass'] = None
   @property
   def size(self):
-    return len(self._indices)
-  @property
-  def indices(self):
-    '''List interface for the molecules indices'''
-    return self._indices
-    # return list(self._indices) # set
-  @indices.setter
-  def indices(self,values):
-    '''Parameter values must be iteratble.'''
-    # self._indices = set(values) # set
-    self._indices = list(values)
+    return len(self.indices)
   def isDummy(self):
     '''Check identity against global DummyMolecule sentinel.'''
     return False
@@ -81,7 +71,7 @@ class Molecule(object):
   def __str__(self):
     return "<{}.{}>".format(self.name,self.size)
   def check_indices(self):
-    if self._indices is None:
+    if self.indices is None:
       raise ValueError('Molecule named \"{}\" has no indices!'.format(self.name))
   def check_system(self):
     if self.system is None:
@@ -99,10 +89,9 @@ class Molecule(object):
       for i in self.indices:
         if index_mapping[i] !=-1:
           new_indices.append(index_mapping[i])
-      # self._indices = set(new_indices) # set
-      self._indices = new_indices
+      self.indices = new_indices
 
-    if not self._indices:
+    if len(self.indices)==0:
       # Molecule is empty! Signal for removal
       return False
 
@@ -144,9 +133,8 @@ class Molecule(object):
     raise NotImplementedError('Molecule named \"{}\" hasn\'t defined a build method!'.format(self.name))
   def add_indices(self,indices):
     '''Add new indices to current molecule. Also updates the system.molecule_map'''
-    for index in indices:
-      # self._indices.add(index) # set
-      self._indices.append(index)
+    for i,index in enumerate(indices):
+      self.indices.append(index)
       oldMolecule = self.system.molecule_map[index]
       self.system.molecule_map[index] = self
       # If oldMolecule is a not a placeholder, we need to remove 
@@ -157,8 +145,7 @@ class Molecule(object):
   def remove_indices(self,indices):
     ''' Removes indices from current molecule. Potentially updates the system.molecule_map'''
     for index in indices:
-       #self._indices.remove(index) # set?
-      self._indices.remove(index) 
+      self.indices.remove(index) 
       if self.system.molecule_map[index] is self:
         self.system.molecule_map[index] = self.system.DummyMolecule
     if not self.isDummy():
