@@ -7,9 +7,11 @@ from typySim import molecule
 from typySim.geometry import linalg
 from typySim.engine.RosenbluthChain import RosenbluthChain
 from typySim.engine.MonteCarloMove import MonteCarloMove
+from typySim.molecule.ChainSegment import ChainSegment
+
 from typySim.core.cy.cyutil import n_closest
 
-class SpliceSC_CBMCMove(MonteCarloMove):
+class SeverSC_CBMCMove(MonteCarloMove):
   '''
   Definitions
   -----------
@@ -30,8 +32,8 @@ class SpliceSC_CBMCMove(MonteCarloMove):
 
   '''
   def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None):
-    super(SpliceSC_CBMCMove,self).__init__() #must call parent class' constructor
-    self.name='SpliceSC_CBMCMove'
+    super(SeverSC_CBMCMove,self).__init__() #must call parent class' constructor
+    self.name='SeverSC_CBMCMove'
     self.regrowth_types = regrowth_types
 
     with open(bias_pkl,'rb') as f:
@@ -50,24 +52,17 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     self.rosen_chain.system      = engine.system
   @MonteCarloMove.counter
   def attempt(self):
-    mc_move_data = {'string':'SPLC::'}
+    mc_move_data = {'string':'SEVR::'}
 
-    abort,mol1,mol2,counts = self.pick_mol()
+    abort,mol,counts = self.pick_mol()
 
     if abort:
       accept=False
-      if mol1 is None:
-        mc_move_data['string'] += 'not_enough_tails'
-        return accept,mc_move_data
-      elif mol2 is None:
-        mc_move_data['string'] += 'chain1_too_short'
-        return accept,mc_move_data
-      else:
-        mc_move_data['string'] = 'chain2_too_short'
-        return accept,mc_move_data
+      mc_move_data['string'] += 'not_enough_loops_or_tails'
+      return accept,mc_move_data
 
-    self.rosen_chain.chain_type = 'splice'
-    self.build_rosen_chain(mol1,mol2)
+    self.rosen_chain.chain_type = 'sever'
+    self.build_rosen_chain(mol)
 
     ################################
     ## INITIAL ENERGY CALCULATION ##
@@ -136,96 +131,72 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     tie_list  = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='tie']
     loop_list = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='loop']
 
-    if len(tail_list)<2:
+    if len(tie_list)==0 and len(loop_list)==0:
       abort = True
       counts = {'tail':0,'tie':0,'loop':0}
-      return abort,None,None,counts
+      return abort,None,counts
 
     index_list_tail = [i for mol in tail_list for i in mol.indices]
     index_list_tie  = [i for mol in tie_list for i in mol.indices]
     index_list_loop = [i for mol in loop_list for i in mol.indices]
     counts = {'tail':len(index_list_tail),'tie':len(index_list_tie),'loop':len(index_list_loop)}
 
-    index_list = index_list_tail[:]
+    index_list = index_list_loop + index_list_tie
 
-    index1 = choice(index_list)
-    mol1 = self.system.molecule_map[index1]
-    index_list = [i for i in index_list if i not in mol1.indices]
-
-    if mol1.size < self.regrowth_min+2:
-      abort = True
-      return abort,mol1,None,counts
-
-    x1 = self.system.x[index1]
-    y1 = self.system.y[index1]
-    z1 = self.system.z[index1]
-    x2Array = self.system.x[index_list]
-    y2Array = self.system.y[index_list]
-    z2Array = self.system.z[index_list]
-
-    index_list_close,dist_list_close = n_closest(10,x1,y1,z1,x2Array,y2Array,z2Array,self.system.box)
-    index2 = index_list[choice(index_list_close)]
-    mol2 = self.system.molecule_map[index2]
-
-    if mol2.size < self.regrowth_min+2:
-      abort = True
-      return abort,mol1,mol2,counts
-
+    index = choice(index_list)
+    mol = self.system.molecule_map[index]
     abort = False
-    return abort,mol1,mol2,counts
-  def build_rosen_chain(self,mol1,mol2):
+    return abort,mol,counts
+  def build_rosen_chain(self,mol1):
     '''
-    There are several approaches you could use to set up the splice move. This is 
-    one approach that seems to be reasonably successful. 
-
-      >> Pick two tails to regrow
-      S1--00--01--02--03--04--05--06--07--08--09
-      S2--10--11--12--13--14--15--16--17
-
-      >> Pick longer chain to regrow (RR = beads being regrown)
-      S1--00--RR--RR--RR--RR--RR--RR--RR--RR--RR
-      S2--10--11--12--13--14--15--16--17
-
-      >> Regrow using 00 as the first step anchor, and 17 as the beacon for all steps.
+      >> Pick a loop or tails to break up
       S1--00--NR--RR--RR--RR--RR--RR--RR--RR
                                            |
       S2--10--11--12--13--14--15--16--17--RR
 
+      >> Pick portion of chain to regrow (RR = beads being regrown)
+      >> Regrow using 00 as the first step anchor, and 17 as the beacon for all steps.
+      S1--00--RR--RR--RR--RR--RR--RR--RR--RR--RR
+      S2--10--11--12--13--14--15--16--17
+
+
+
     '''
-    if mol1.size<mol2.size:
-      mol1,mol2 = mol2,mol1
+    indices = mol1.indices
 
-    indices1 = mol1.indices
-    indices2 = mol2.indices
-
-    # We want to be growing in the direction away from the crystallite
-    if indices1[-1] in mol1.properties['connected_to']:
-      indices1 = indices1[::-1]
-
-    if indices2[-1] not in mol2.properties['connected_to']:
-      indices2 = indices2[::-1]
-
-    self.rosen_chain.set_indices(indices1,internal_growth=False,random_inversion=False,full_chain=True)
+    self.rosen_chain.set_indices(indices,internal_growth=True,random_inversion=False)
     self.rosen_chain.build_arrays()
     self.rosen_chain.copy_retrace_to_regrowth()
 
-    l1 = self.rosen_chain.length
-    self.rosen_chain.regrowth_beacons = [(indices2[0],l1-i) for i in range(l1)] 
-
     chain1_end_sys   = self.rosen_chain.indices[-1]
-    chain1_end_new   = self.rosen_chain.new_indices[-1]
-    chain2_start_sys = indices2[0]
+    chain2_start_sys = self.rosen_chain.high_indices[0]
+    l1 = self.rosen_chain.length
 
-    self.rosen_chain.regrowth_bonds[-1].append([chain1_end_new,chain2_start_sys])
+    self.rosen_chain.regrowth_beacons = [None for i in range(l1)] 
+    del self.rosen_chain.regrowth_bonds[-1][-1]
 
     ## Need to build `acceptance package` i.e. what needs to be changed (beyond x,y,z,imx,imy,imz) if
     ## the move is accepted. 
     bonds = {'added':[], 'removed':[]}
-    bonds['added'].append([chain1_end_sys,chain2_start_sys])
+    bonds['removed'].append([chain1_end_sys,chain2_start_sys])
 
     mod_mol1 = {}
-    mod_mol1['molecule']     = mol1
-    mod_mol1['indices'] = indices1 + indices2
+    mod_mol1['molecule']  = mol1
+    mod_mol1['indices']   = self.rosen_chain.low_indices + self.rosen_chain.indices
+
+    mol2 = ChainSegment()
+    mol2.indices = self.rosen_chain.high_indices
 
     self.rosen_chain.acceptance_package['bonds'] = bonds
-    self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1],'added':[],'removed':[mol2]}
+    self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1],'added':[mol2],'removed':[]}
+    # print "CHAIN1:"
+    # print mol1.indices
+    # print "GROW1:"
+    # print self.rosen_chain.indices
+    # print "FULL BONDS"
+    # print self.rosen_chain.regrowth_bonds
+    # print "BOND DELTA"
+    # print bonds
+    # print "ACC PKG"
+    # print self.rosen_chain.acceptance_package
+    # ist()
