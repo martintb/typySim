@@ -1,4 +1,4 @@
-import random
+from numpy.random import choice
 import logging
 import cPickle
 import numpy as np
@@ -27,15 +27,17 @@ class MonteCarlo(object):
   def __init__(self):
     super(MonteCarlo,self).__init__() #must call parent class' constructor
     self.moveList = list()
+    self.moveWeights = list()
     self.name='MonteCarlo'
     self.rates = {}
     self.rates['total_attempted'] = 0
     self.rates['total_accepted'] = 0
     self.viz = None
     self.logger = logging.getLogger(__name__)
-  def add_move(self,move):
+  def add_move(self,move,weight=1):
     move.set_engine(self)
     self.moveList.append(move)
+    self.moveWeights.append(weight)
     if not (move.name in self.rates):
       self.rates[move.name] = 0
   def remove_move(self,move):
@@ -69,8 +71,10 @@ class MonteCarlo(object):
     self.TPE_list = []
     self.TPE_list.append(sum(self.TPE.compute()))
 
+    totalWeight = float(sum(self.moveWeights))
+    move_probs = [i/totalWeight for i in self.moveWeights]
     for i in range(num_attempts):
-      move = random.choice(self.moveList)
+      move = choice(self.moveList,p=move_probs)
       success,mc_move_data = move.attempt()
 
       self.rates['total_attempted'] += 1
