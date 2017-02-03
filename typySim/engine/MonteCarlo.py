@@ -131,7 +131,7 @@ class MonteCarlo(object):
     self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
 
     if pkl_rate is not None:
-      self.logger.log(logging.INFO+1,'Logging trajectory to {}'.format(pkl_name))
+      self.logger.info('Logging trajectory to {}'.format(pkl_name))
       with open(pkl_name,'wb') as f:
         cPickle.dump(pkl,f,-1)
 

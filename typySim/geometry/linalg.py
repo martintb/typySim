@@ -6,7 +6,7 @@ def normalize(v,axis=None):
   return v
 
 def rescale(v,scale,axis=None):
-	v = np.linalg.norm(v,axis=axis)*scale
+  v = np.linalg.norm(v,axis=axis)*scale
   return v
 
 class Quaternion(object):

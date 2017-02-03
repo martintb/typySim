@@ -241,7 +241,7 @@ x,y,z : float ndarrary, size (nbeads)
     self.molecule_map = np.append(self.molecule_map,[self.DummyMolecule for i in range(new_nbeads)])
 
     self.bonds.expand(new_nbeads)
-    if bonds is not None:
+    if bonds is not None and len(bonds)>0:
       if bond_shift == True:
         bond_shift_value = self.nbeads
       else:

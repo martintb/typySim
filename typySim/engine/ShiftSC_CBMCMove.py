@@ -31,7 +31,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None,bond_prob=None):
+  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None):
     super(ShiftSC_CBMCMove,self).__init__() #must call parent class' constructor
     self.name='ShiftSC_CBMCMove'
     self.regrowth_types = regrowth_types
