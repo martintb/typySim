@@ -31,7 +31,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None):
+  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None,bond_prob=None):
     super(ShiftSC_CBMCMove,self).__init__() #must call parent class' constructor
     self.name='ShiftSC_CBMCMove'
     self.regrowth_types = regrowth_types
@@ -44,7 +44,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     self.regrowth_max = regrowth_max
 
     # We'll pre-instatiate the rosen-chain so 
-    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz)
+    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz,bond_prob=bond_prob)
   def set_engine(self,engine):
     self.engine                  = engine
     self.system                  = engine.system

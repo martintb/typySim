@@ -1,3 +1,4 @@
+from typySim.geometry import linalg
 from numpy.random import randint,random,choice
 import numpy as np
 import ipdb; ist = ipdb.set_trace
@@ -62,6 +63,7 @@ class RosenbluthChain(object):
     self.all_indices        = None
 
     self.indices            = None
+    self.new_indices        = None
 
     self.retrace_anchors    = None
     self.retrace_beacons    = None
@@ -80,6 +82,7 @@ class RosenbluthChain(object):
     self.all_indices        = [chain1.all_indices        ,chain2.all_indices]
 
     # Needed for rosenbluth calculation therefore flat lists are necessary
+    self.new_indices            = chain1.new_indices      + chain2.new_indices
     self.indices                = chain1.indices          + chain2.indices
     self.retrace_anchors        = chain1.retrace_anchors  + chain2.retrace_anchors
     self.retrace_beacons        = chain1.retrace_beacons  + chain2.retrace_beacons
@@ -95,7 +98,7 @@ class RosenbluthChain(object):
     self.regrowth_bonds   = copy.deepcopy(self.retrace_bonds)
     self.regrowth_anchors = self.retrace_anchors[:]
     self.regrowth_beacons = self.retrace_beacons[:]
-  def set_indices(self,indices,internal_growth,random_inversion=True):
+  def set_indices(self,indices,internal_growth,full_chain=False,random_inversion=True):
     self.internal_growth = internal_growth
 
     if random_inversion and random()>0.5:
@@ -107,12 +110,15 @@ class RosenbluthChain(object):
 
     chain_length = len(self.all_indices)
 
-    #Note that randint is [low,high)
-    start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
-    if internal_growth:
+    if full_chain:
+      start_index_local        = 1
+      end_index_local          = chain_length-1 
+    elif internal_growth:
+      start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
       max_regrowth_index_local = min(start_index_local+self.regrowth_max,chain_length-1) 
       end_index_local     = randint(start_index_local+self.regrowth_min,max_regrowth_index_local+1)-1
     else:
+      start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
       end_index_local = chain_length-1 
 
     self.indices                = self.all_indices[start_index_local:(end_index_local+1)] #self
@@ -130,13 +136,19 @@ class RosenbluthChain(object):
     return old_bonds,new_bonds
   def build_arrays(self,index_shift=0):
     last_local_index = (self.length-1)
+    ####################
+    ## GROWTH_INDICES ##
+    ####################
+    self.new_indices = []
+    for local_index,sys_index in enumerate(self.indices):
+      self.new_indices.append(local_index + self.system.nbeads + index_shift)
 
     ###########
     ## BONDS ##
     ###########
     self.retrace_bonds = [] 
     for local_index,sys_index in enumerate(self.indices):
-      new_index = local_index + self.system.nbeads + index_shift
+      new_index = self.new_indices[local_index]
       self.retrace_bonds.append([])
 
       # Inner Bonds
@@ -250,20 +262,82 @@ class RosenbluthChain(object):
     #   self.viz.draw_glyphs(x,y,z,t)
 
     self.viz.show(blocking=True,resetCamera=True)
+  def apply_acceptance_package(self,color_by_topology=True):
+    pkg = self.acceptance_package
+    #------------------------#
+    # UPDATE COORD AND IMAGE #
+    #------------------------#
+    for local_index,sys_index in enumerate(self.indices):
+      x = pkg['x'][local_index]
+      y = pkg['y'][local_index]
+      z = pkg['z'][local_index]
+      self.system.x[sys_index] = x
+      self.system.y[sys_index] = y
+      self.system.z[sys_index] = z
 
-  def calc_rosenbluth(self,UBase,retrace=False):
+      imx = pkg['imx'][local_index]
+      imy = pkg['imy'][local_index]
+      imz = pkg['imz'][local_index]
+      self.system.imx[sys_index] = imx
+      self.system.imy[sys_index] = imy
+      self.system.imz[sys_index] = imz
+
+      self.system.neighbor_list.update_bead(sys_index,x=x,y=y,z=z)
+
+    #--------------#
+    # UPDATE BONDS #
+    #--------------#
+    if 'bonds' in pkg:
+      for beadi,beadj in pkg['bonds']['added']:
+        self.system.bonds.add(beadi,beadj,0)
+      for beadi,beadj in pkg['bonds']['removed']:
+        self.system.bonds.remove(beadi,beadj,0)
+
+    #------------------#
+    # UPDATE MOLECULES #
+    #------------------#
+    if 'molecules' in pkg:
+      for mol in pkg['molecules']['removed']:
+        self.system.remove_molecule(molecule=mol,remove_beads=False)
+
+      for mol in pkg['molecules']['added']:
+        self.system.add_molecule(mol)
+        mol.reset()
+        mol.update_properties() #update topology
+        if color_by_topology:
+          if mol.properties['topology'] == 'tail':
+            mol.types[~mol.types.mask] = 2
+          elif mol.properties['topology'] == 'loop':
+            mol.types[~mol.types.mask] = 3
+          elif mol.properties['topology'] == 'tie':
+            mol.types[~mol.types.mask] = 4
+
+      for molDict in pkg['molecules']['modded']:
+        mol         = molDict['molecule']
+        mol.indices = molDict['indices']
+        for index in mol.indices:
+          self.system.molecule_map[index] = mol
+
+        mol.reset()
+        mol.update_properties() #update topology
+        if color_by_topology:
+          if mol.properties['topology'] == 'tail':
+            mol.types[~mol.types.mask] = 2
+          elif mol.properties['topology'] == 'loop':
+            mol.types[~mol.types.mask] = 3
+          elif mol.properties['topology'] == 'tie':
+            mol.types[~mol.types.mask] = 4
+  def calc_rosebluth(self,UBase,retrace=False):
     abort = False
 
     trial_indices= np.arange(self.num_trials,dtype=np.int)
 
     if retrace:
       bonds   = self.roll_steplist(self.retrace_bonds)
-      # bonds   = self.retrace_bonds
       beacons = self.retrace_beacons
       anchors = self.retrace_anchors
     else:
       bonds   = self.roll_steplist(self.regrowth_bonds)
-      # bonds   = self.regrowth_bonds
       beacons = self.regrowth_beacons
       anchors = self.regrowth_anchors
 
@@ -474,4 +548,3 @@ class RosenbluthChain(object):
       #   ist()
 
     return abort,rosen_weights,bias_weights
-
