@@ -63,9 +63,11 @@ class CBMCMove(MonteCarloMove):
       mc_move_data['string'] = 'chain_is_too_short'
       return accept,mc_move_data
 
-    self.rosen_chain.set_indices(indices,internal_growth=False)
+    self.rosen_chain.set_indices(mol.indices,internal_growth=False)
     self.rosen_chain.build_arrays()
     self.rosen_chain.copy_retrace_to_regrowth()
+    self.rosen_chain.acceptance_package['bonds'] = {'added':[], 'removed':[]}
+    self.rosen_chain.acceptance_package['molecules'] = {'modded':[],'added':[],'removed':[]}
 
     ################################
     ## INITIAL ENERGY CALCULATION ##
@@ -78,7 +80,7 @@ class CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       mc_move_data['string'] = 'bad_trial_move_new'
       accept = False
@@ -87,7 +89,7 @@ class CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       mc_move_data['string'] = 'bad_trial_move_old'
       accept = False
@@ -100,8 +102,8 @@ class CBMCMove(MonteCarloMove):
     # print 'TOPBIAS',bias_weights_old
     # print 'BOTBIAS',np.sum(rosen_weights_old,axis=1)
     # print 'BOTROSEN',bias_weights_new
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
     mc_move_data['k'] = self.rosen_chain.length
@@ -120,24 +122,9 @@ class CBMCMove(MonteCarloMove):
 
     if accept:
       mc_move_data['U'] = self.rosen_chain.acceptance_package['U']
-      for local_index,sys_index in enumerate(self.rosen_chain.indices):
-        x = self.rosen_chain.acceptance_package['x'][local_index]
-        y = self.rosen_chain.acceptance_package['y'][local_index]
-        z = self.rosen_chain.acceptance_package['z'][local_index]
-        self.system.x[sys_index] = x
-        self.system.y[sys_index] = y
-        self.system.z[sys_index] = z
+      self.rosen_chain.apply_acceptance_package()
 
-        imx = self.rosen_chain.acceptance_package['imx'][local_index]
-        imy = self.rosen_chain.acceptance_package['imy'][local_index]
-        imz = self.rosen_chain.acceptance_package['imz'][local_index]
-        self.system.imx[sys_index] = imx
-        self.system.imy[sys_index] = imy
-        self.system.imz[sys_index] = imz
-
-        self.system.neighbor_list.update_bead(sys_index,x=x,y=y,z=z)
-
-    mc_move_data['string'] = 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
+    mc_move_data['string'] = 'CBMC::Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
     return accept,mc_move_data
 
 

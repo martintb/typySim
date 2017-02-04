@@ -113,8 +113,9 @@ class RosenbluthChain(object):
       max_regrowth_index_local = min(start_index_local+self.regrowth_max,chain_length-1) 
       end_index_local          = randint(start_index_local+self.regrowth_min,max_regrowth_index_local+1)-1
     else:
-      start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
-      end_index_local = chain_length-1 
+      # start_index_local        = randint(0,chain_length-self.regrowth_min-1)+1
+      start_index_local        = randint(chain_length-self.regrowth_max,chain_length-self.regrowth_min-1)+1
+      end_index_local          = chain_length-1 
 
     self.indices                = self.all_indices[start_index_local:(end_index_local+1)] #self
     self.low_indices            = self.all_indices[:start_index_local] #self
@@ -143,8 +144,9 @@ class RosenbluthChain(object):
       if linear_chain and local_index>0:
         anchors.append(trial_index-1)
       if len(anchors)==0:
-        anchors = None
-      self.retrace_anchors.append(anchors)
+        self.retrace_anchors.append(None)
+      else:
+        self.retrace_anchors.append(tuple(anchors))
 
     if (anchors is not None) and (len(anchors)>1):
       beacon = anchors[0]
@@ -275,6 +277,7 @@ class RosenbluthChain(object):
     new['imx'] = images
     new['imy'] = images
     new['imz'] = images
+    new['J']   = 1.0
     return new
   def generate_singly_anchored_trials(self,local_index,anchors,trial_xyz,trial_imxyz):
     anchor_index = anchors[local_index][0]
@@ -315,6 +318,7 @@ class RosenbluthChain(object):
     new['imx'] = new_imx + anchor_imx
     new['imy'] = new_imy + anchor_imy
     new['imz'] = new_imz + anchor_imz
+    new['J']   = 1.0
     return new
   def generate_doubly_anchored_trials(self,local_index,anchors,trial_xyz,trial_imxyz):
     anchor_index1 = anchors[local_index][0]
@@ -427,17 +431,14 @@ class RosenbluthChain(object):
       #################
       if anchors[local_index] is None:
         new = self.generate_unanchored_trials()
-        JFactor = 1
       elif len(anchors[local_index])==1:
         trial_xyz = (trial_x,trial_y,trial_z)
         trial_imxyz = (trial_imx,trial_imy,trial_imz)
         new = self.generate_singly_anchored_trials(local_index,anchors,trial_xyz,trial_imxyz)
-        JFactor = 1
       elif len(anchors[local_index])==2:
         trial_xyz = (trial_x,trial_y,trial_z)
         trial_imxyz = (trial_imx,trial_imy,trial_imz)
         new = self.generate_doubly_anchored_trials(local_index,anchors,trial_xyz,trial_imxyz)
-        JFactor = 1/new['J']
         if new is None:
           abort = True
           return abort,None,None,None
@@ -513,37 +514,15 @@ class RosenbluthChain(object):
       else:
         biases = np.ones(self.num_trials)
 
-
-      ############
-      ## CHOOSE ##
-      ############
-      # If all of the rosen_weights are extremely small or zero, it means that
-      # the configuration is "stuck" and that all trial monomers are high energy.
-      # We abort the growth early in order to not waste time continuing the growth
-      # of a broken configuration.
-      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
-      if (not retrace) and np.all(rosen_weights[-1]==0.):
-        abort = True
-        return abort,None,None,None
-
-      if retrace:
-        chosen_index = 0
-      else:
-        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
-        chosen_index = choice(self.num_trials,p=trial_probabilities)
-
-      #need the chosen bias weight for the final acceptance
-      bias_weights.append(biases[chosen_index])
-
-
       #############
       ## SHOW IT ##
       #############
-      if not retrace and self.viz is not None:
+      # if not retrace and self.viz is not None:
+      if self.viz is not None:
         print '===================={:02d}/{:02d}===================='.format(local_index,self.length-1)
         print 'ROSEN\n',rosen_weights[-1]
         print 'BIAS\n',biases
-        print 'CHOSEN,R,B,J',rosen_weights[-1][chosen_index],bias_weights[-1],JFactor
+        #print 'CHOSEN,R,B,J',rosen_weights[-1][chosen_index],bias_weights[-1],new['J']
         print '============================================='
 
         x = [self.system.x[i] for i in self.indices]
@@ -579,12 +558,49 @@ class RosenbluthChain(object):
         else:
           grown = None
 
-        x = trial_x[chosen_index,local_index]
-        y = trial_y[chosen_index,local_index]
-        z = trial_z[chosen_index,local_index]
-        chosen = np.array([x,y,z])
+        # x = trial_x[chosen_index,local_index]
+        # y = trial_y[chosen_index,local_index]
+        # z = trial_z[chosen_index,local_index]
+        # chosen = np.array([x,y,z])
+        chosen = None
+
+        index_list = []
+        for mol in self.system.molecule_types['ChainSegment']:
+          if mol.properties['topology'] == 'tail':
+            for i in mol.properties['chain_ends']:
+              if i not in mol.properties['connected_to']:
+                index_list.append(i)
+        x = self.system.x[index_list]
+        y = self.system.y[index_list]
+        z = self.system.z[index_list]
+        aa = np.array([x,y,z]).T
+        anchor_pos = np.append(anchor_pos,aa,axis=0)
 
         self.draw_trial(anchor_pos,beacon,grown,trials,orig,chosen)
+
+
+      ############
+      ## CHOOSE ##
+      ############
+      # If all of the rosen_weights are extremely small or zero, it means that
+      # the configuration is "stuck" and that all trial monomers are high energy.
+      # We abort the growth early in order to not waste time continuing the growth
+      # of a broken configuration.
+      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
+      if (not retrace) and np.all(rosen_weights[-1]==0.):
+        abort = True
+        return abort,None,None,None
+
+      if retrace:
+        chosen_index = 0
+      else:
+        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
+        chosen_index = choice(self.num_trials,p=trial_probabilities)
+
+      #need the chosen bias weight for the final acceptance
+      bias_weights.append(biases[chosen_index])
+
+
 
       # Equalize all trial_values at the current step to the chosen_value
       trial_x[:,local_index]     = trial_x[chosen_index,local_index]
@@ -608,4 +624,4 @@ class RosenbluthChain(object):
       self.acceptance_package['imz'] = trial_imz[chosen_index,:]
       self.acceptance_package['U']   = trial_potential_energies[chosen_index]
 
-    return abort,rosen_weights,bias_weights,JFactor
+    return abort,rosen_weights,bias_weights,new['J']

@@ -125,7 +125,7 @@ class FE_CBMCMove(MonteCarloMove):
       mc_move_data['U'] = self.rosen_chain.acceptance_package['U']
       self.rosen_chain.apply_acceptance_package()
 
-    mc_move_data['string'] = 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
+    mc_move_data['string'] = 'FE_CBMC::Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
     return accept,mc_move_data
 
 

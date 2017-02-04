@@ -75,7 +75,7 @@ class SeverSC_CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_new'
       accept = False
@@ -85,7 +85,7 @@ class SeverSC_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_old'
       accept = False
@@ -95,8 +95,8 @@ class SeverSC_CBMCMove(MonteCarloMove):
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
     mc_move_data['string'] += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
@@ -159,8 +159,6 @@ class SeverSC_CBMCMove(MonteCarloMove):
       S1--00--RR--RR--RR--RR--RR--RR--RR--RR--RR
       S2--10--11--12--13--14--15--16--17
 
-
-
     '''
     indices = mol1.indices
 
@@ -173,7 +171,7 @@ class SeverSC_CBMCMove(MonteCarloMove):
     l1 = self.rosen_chain.length
 
     self.rosen_chain.regrowth_beacons = [None for i in range(l1)] 
-    del self.rosen_chain.regrowth_bonds[-1][-1]
+    self.rosen_chain.regrowth_anchors[-1] = (self.rosen_chain.regrowth_anchors[-1][1],)
 
     ## Need to build `acceptance package` i.e. what needs to be changed (beyond x,y,z,imx,imy,imz) if
     ## the move is accepted. 

@@ -44,7 +44,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     self.regrowth_max = regrowth_max
 
     # We'll pre-instatiate the rosen-chain so 
-    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz,bond_prob=bond_prob)
+    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz)
   def set_engine(self,engine):
     self.engine                  = engine
     self.system                  = engine.system
@@ -58,8 +58,12 @@ class ShiftSC_CBMCMove(MonteCarloMove):
 
     if abort:
       accept=False
-      mc_move_data['string'] += 'no_sc_chains'
-      return accept,mc_move_data
+      if mol is None:
+        mc_move_data['string'] += 'no_sc_chains'
+        return accept,mc_move_data
+      else:
+        mc_move_data['string'] += 'chain_too_short'
+        return accept,mc_move_data
 
     self.rosen_chain.chain_type = 'shift'
     self.build_rosen_chain(mol)
@@ -75,7 +79,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_new'
       accept = False
@@ -85,7 +89,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_old'
       accept = False
@@ -95,8 +99,8 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
     mc_move_data['string'] += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
@@ -145,6 +149,11 @@ class ShiftSC_CBMCMove(MonteCarloMove):
 
     index = choice(index_list)
     mol = self.system.molecule_map[index]
+
+    if mol.size < self.regrowth_min+2:
+      abort = True
+      return abort,mol,counts
+
     abort = False
     return abort,mol,counts
   def build_rosen_chain(self,mol1):
@@ -173,6 +182,5 @@ class ShiftSC_CBMCMove(MonteCarloMove):
 
     self.rosen_chain.build_arrays()
     self.rosen_chain.copy_retrace_to_regrowth()
-
     self.rosen_chain.acceptance_package['bonds'] = {'added':[], 'removed':[]}
     self.rosen_chain.acceptance_package['molecules'] = {'modded':[],'added':[],'removed':[]}

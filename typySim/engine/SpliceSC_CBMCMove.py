@@ -80,7 +80,7 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_new'
       accept = False
@@ -90,7 +90,7 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       mc_move_data['string'] += 'bad_trial_move_old'
       accept = False
@@ -100,8 +100,8 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
     mc_move_data['Wnew'] = Wnew
     mc_move_data['Wold'] = Wold
     mc_move_data['string'] += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
@@ -146,12 +146,19 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     index_list_loop = [i for mol in loop_list for i in mol.indices]
     counts = {'tail':len(index_list_tail),'tie':len(index_list_tie),'loop':len(index_list_loop)}
 
-    index_list = index_list_tail[:]
+    index_list_tail_ends = []
+    for mol in tail_list: 
+      for i in mol.properties['chain_ends']:
+        if i not in mol.properties['connected_to']:
+          index_list_tail_ends.append(i)
+    counts['tail_ends'] = len(index_list_tail_ends)
+
+    index_list = index_list_tail_ends[:]
 
     index1 = choice(index_list)
     mol1 = self.system.molecule_map[index1]
     index_list = [i for i in index_list if i not in mol1.indices]
-
+    
     if mol1.size < self.regrowth_min+2:
       abort = True
       return abort,mol1,None,counts
@@ -166,6 +173,15 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     index_list_close,dist_list_close = n_closest(10,x1,y1,z1,x2Array,y2Array,z2Array,self.system.box)
     index2 = index_list[choice(index_list_close)]
     mol2 = self.system.molecule_map[index2]
+
+    # print mol1,mol2,index1,index2
+    # print 'MOL1/MOL2 INDICES'
+    # print mol1.indices
+    # print mol2.indices
+    # print 'MOL1/MOL2 PROPERTIES'
+    # print mol1.properties
+    # print mol2.properties
+
 
     if mol2.size < self.regrowth_min+2:
       abort = True
@@ -205,18 +221,18 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     if indices2[-1] not in mol2.properties['connected_to']:
       indices2 = indices2[::-1]
 
-    self.rosen_chain.set_indices(indices1,internal_growth=False,random_inversion=False,full_chain=True)
+    self.rosen_chain.set_indices(indices1,internal_growth=False,random_inversion=False)#,full_chain=True)
     self.rosen_chain.build_arrays()
     self.rosen_chain.copy_retrace_to_regrowth()
 
-    l1 = self.rosen_chain.length
-    self.rosen_chain.regrowth_beacons = [(indices2[0],l1-i) for i in range(l1)] 
-
     chain1_end_sys   = self.rosen_chain.indices[-1]
-    chain1_end_new   = self.rosen_chain.new_indices[-1]
+    chain1_end_new   = self.rosen_chain.trial_indices[-1]
     chain2_start_sys = indices2[0]
 
-    self.rosen_chain.regrowth_bonds[-1].append([chain1_end_new,chain2_start_sys])
+    l1 = self.rosen_chain.length
+    self.rosen_chain.regrowth_beacons = [(chain2_start_sys,l1-i) for i in range(l1)] 
+    self.rosen_chain.regrowth_anchors[-1] += (chain2_start_sys,)
+
 
     ## Need to build `acceptance package` i.e. what needs to be changed (beyond x,y,z,imx,imy,imz) if
     ## the move is accepted. 
