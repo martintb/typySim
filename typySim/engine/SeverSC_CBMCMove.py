@@ -50,16 +50,16 @@ class SeverSC_CBMCMove(MonteCarloMove):
     self.system                  = engine.system
     self.rosen_chain.engine      = engine
     self.rosen_chain.system      = engine.system
-  @MonteCarloMove.counter
-  def attempt(self):
-    mc_move_data = {'string':'SEVR::'}
+  def _attempt(self):
+    self.reset('SEVR::')
 
     abort,mol,counts = self.pick_mol()
 
     if abort:
-      accept=False
-      mc_move_data['string'] += 'not_enough_loops_or_tails'
-      return accept,mc_move_data
+      self.technical_abort = True
+      self.accept          = False
+      self.string += 'not_enough_loops_or_tails'
+      return 
 
     self.rosen_chain.chain_type = 'sever'
     self.build_rosen_chain(mol)
@@ -77,44 +77,41 @@ class SeverSC_CBMCMove(MonteCarloMove):
     ####################
     abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
-      mc_move_data['string'] += 'bad_trial_move_new'
-      accept = False
+      self.string += 'bad_trial_move_new'
+      self.accept = False
       self.rosen_chain.reset()
-      return accept,mc_move_data
+      return 
 
     #####################
     ## TRACE OLD CHAIN ##
     #####################
     abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
-      mc_move_data['string'] += 'bad_trial_move_old'
-      accept = False
+      self.string += 'bad_trial_move_old'
+      self.accept = False
       self.rosen_chain.reset()
-      return accept,mc_move_data
+      return 
 
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
     Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
     Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
-    mc_move_data['Wnew'] = Wnew
-    mc_move_data['Wold'] = Wold
-    mc_move_data['string'] += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
 
     #######################
     ## ACCEPT OR REJECT? ##
     #######################
     if Wnew>Wold:
-      accept = True
+      self.accept = True
     else:
       ranf = np.random.rand()
       if ranf<(Wnew/Wold):
-        accept=True
+        self.accept=True
       else:
-        accept=False
+        self.accept=False
 
-    if accept:
-      mc_move_data['U'] = self.rosen_chain.acceptance_package['U']
+    if self.accept:
+      self.Unew = self.rosen_chain.acceptance_package['U']
       self.rosen_chain.apply_acceptance_package()
 
     # if accept:
@@ -124,22 +121,26 @@ class SeverSC_CBMCMove(MonteCarloMove):
     #   self.engine.viz.show()
     #   ist()
 
+    self.string += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
     self.rosen_chain.reset()
-    return accept,mc_move_data
+    return 
   def pick_mol(self):
+    counts = {}
     tail_list = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='tail']
     tie_list  = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='tie']
     loop_list = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='loop']
+    for name,l in zip(['tails','ties','loops'],[tail_list,tie_list,loop_list]):
+      counts[name] = len(l)
 
     if len(tie_list)==0 and len(loop_list)==0:
       abort = True
-      counts = {'tail':0,'tie':0,'loop':0}
       return abort,None,counts
 
     index_list_tail = [i for mol in tail_list for i in mol.indices]
     index_list_tie  = [i for mol in tie_list for i in mol.indices]
     index_list_loop = [i for mol in loop_list for i in mol.indices]
-    counts = {'tail':len(index_list_tail),'tie':len(index_list_tie),'loop':len(index_list_loop)}
+    for name,l in zip(['tail_beads','tie_beads','loop_beads'],[index_list_tail,index_list_tie,index_list_loop]):
+      counts[name] = len(l)
 
     index_list = index_list_loop + index_list_tie
 

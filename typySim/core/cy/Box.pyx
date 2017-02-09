@@ -233,9 +233,9 @@ cdef class Box:
       (x,y,z),(imx,imy,imz) = self.wrap_positions_long(self.system.x,self.system.y,self.system.z)
     else:
       (x,y,z),(imx,imy,imz) = self.wrap_positions(self.system.x,self.system.y,self.system.z)
-    self.system.x = x
-    self.system.y = y
-    self.system.z = z
+    self.system.x    = np.array(x)
+    self.system.y    = np.array(y)
+    self.system.z    = np.array(z)
     self.system.imx += imx
     self.system.imy += imy
     self.system.imz += imz

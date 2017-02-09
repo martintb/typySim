@@ -75,32 +75,34 @@ class MonteCarlo(object):
     move_probs = [i/totalWeight for i in self.moveWeights]
     for i in range(num_attempts):
       move = choice(self.moveList,p=move_probs)
-      success,mc_move_data = move.attempt()
+      move.attempt()
 
-      self.rates['total_attempted'] += 1
-      if success:
+      if not move.technical_abort:
+        self.rates['total_attempted'] += 1
+      if move.accept:
         self.rates['total_accepted'] += 1
         self.rates[move.name] += 1
-        self.TPE_list.append(mc_move_data['U'])
+        self.TPE_list.append(move.Unew)
       else:
         self.TPE_list.append(self.TPE_list[-1])
       if (i%log_rate)==0:
         accepted = self.rates['total_accepted']
         attempted = self.rates['total_attempted']
-        rate = accepted/float(attempted)
-        if success:
+        if attempted>0:
+          rate = accepted/float(attempted)
+        else:
+          rate = -1
+        if move.accept:
           color = bcolors.OKGREEN
         else:
           color = bcolors.FAIL
         logStr  = color 
-        # logStr +='Step {}/{}, rate: {:4.3f} U: {} W: {}'.format(i,num_attempts-1,rate,self.TPE_list[-1],mc_move_data['string']) + bcolors.ENDC
-        logStr +='Step {}/{}, rate: {:4.3f} {}'.format(i,num_attempts-1,rate,mc_move_data['string']) + bcolors.ENDC
+        logStr +='Step {}/{}, rate: {:4.3f} {}'.format(i,num_attempts-1,rate,move.string) + bcolors.ENDC
         logStr += bcolors.ENDC
         self.logger.info(logStr)
 
-      if (viz is not None) and success and (i%log_rate)==0:
+      if (viz is not None) and move.accept and (i%log_rate)==0:
         viz.clear()
-        # viz.draw_system(bonds=False)
         viz.draw_system(bonds=True)
         viz.show(blocking=False,resetCamera=False)
 
@@ -108,7 +110,6 @@ class MonteCarlo(object):
         pkl[i] = {}
         pkl[i]['nbeads']    = np.array(self.system.nbeads)
         pkl[i]['L']         = np.array(self.system.box.L)
-        pkl[i]['move_data'] = mc_move_data
         pkl[i]['x']         = np.array(self.system.x)
         pkl[i]['y']         = np.array(self.system.y)
         pkl[i]['z']         = np.array(self.system.z)

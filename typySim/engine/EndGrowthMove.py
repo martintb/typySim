@@ -17,9 +17,8 @@ class EndGrowthMove(MonteCarloMove):
     self.growth_types = [surface_growth_type,chain_end_type]
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
-  @MonteCarloMove.counter
-  def attempt(self):
-    mc_move_data = {}
+  def _attempt(self):
+    self.reset('EndGrowth')
     Uold = self.engine.TPE_list[-1]
 
     growth_index = self.system.select.random_index(types=self.growth_types)
@@ -51,16 +50,16 @@ class EndGrowthMove(MonteCarloMove):
 
     Unew = Uold + sum(self.engine.TPE.compute(trial_move=True))
     if Unew<=Uold:
-      accept=True
+      self.accept=True
     else:
       prob = np.exp(-(Unew-Uold))
       ranf = np.random.rand()
       if ranf<prob:
-        accept=True
+        self.accept=True
       else:
-        accept=False
+        self.accept=False
 
-    if accept:
+    if self.accept:
       self.system.append_trial_move()
       new_index = [new_index]
       if (growth_type == self.chain_end_type): # attaching bead to end of chain
@@ -92,9 +91,8 @@ class EndGrowthMove(MonteCarloMove):
       #     causes the masked arrays to become stale (i.e. incorrectly sized)
       self.system.reset_all_molecules()
 
-    mc_move_data['string'] = 'end_growth'
-    mc_move_data['U'] = Unew
-    return accept,mc_move_data
+    self.Unew   = Unew
+    return
 
 
 

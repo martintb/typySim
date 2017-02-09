@@ -7,3 +7,4 @@ from RosenbluthChain import RosenbluthChain
 from SpliceSC_CBMCMove import SpliceSC_CBMCMove
 from SeverSC_CBMCMove import SeverSC_CBMCMove
 from ShiftSC_CBMCMove import ShiftSC_CBMCMove
+from SwapSC_CBMCMove import SwapSC_CBMCMove

@@ -245,11 +245,11 @@ class RosenbluthChain(object):
         mol.update_properties() #update topology
         if color_by_topology:
           if mol.properties['topology'] == 'tail':
-            mol.types[~mol.types.mask] = 2
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['TAIL']
           elif mol.properties['topology'] == 'loop':
-            mol.types[~mol.types.mask] = 3
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['LOOP']
           elif mol.properties['topology'] == 'tie':
-            mol.types[~mol.types.mask] = 4
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['TIE']
 
       for molDict in pkg['molecules']['modded']:
         mol         = molDict['molecule']
@@ -261,11 +261,11 @@ class RosenbluthChain(object):
         mol.update_properties() #update topology
         if color_by_topology:
           if mol.properties['topology'] == 'tail':
-            mol.types[~mol.types.mask] = 2
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['TAIL']
           elif mol.properties['topology'] == 'loop':
-            mol.types[~mol.types.mask] = 3
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['LOOP']
           elif mol.properties['topology'] == 'tie':
-            mol.types[~mol.types.mask] = 4
+            mol.types[~mol.types.mask] = self.system.NonBondedTable.A2N['TIE']
   def generate_unanchored_trials(self):
     new = {}
     new['x'] = np.random.random(self.num_trials)*self.system.box.lx + self.system.box.xlo
@@ -514,6 +514,29 @@ class RosenbluthChain(object):
       else:
         biases = np.ones(self.num_trials)
 
+
+
+      ############
+      ## CHOOSE ##
+      ############
+      # If all of the rosen_weights are extremely small or zero, it means that
+      # the configuration is "stuck" and that all trial monomers are high energy.
+      # We abort the growth early in order to not waste time continuing the growth
+      # of a broken configuration.
+      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
+      if (not retrace) and np.all(rosen_weights[-1]==0.):
+        abort = True
+        return abort,None,None,None
+
+      if retrace:
+        chosen_index = 0
+      else:
+        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
+        chosen_index = choice(self.num_trials,p=trial_probabilities)
+
+      #need the chosen bias weight for the final acceptance
+      bias_weights.append(biases[chosen_index])
+
       #############
       ## SHOW IT ##
       #############
@@ -558,47 +581,25 @@ class RosenbluthChain(object):
         else:
           grown = None
 
-        # x = trial_x[chosen_index,local_index]
-        # y = trial_y[chosen_index,local_index]
-        # z = trial_z[chosen_index,local_index]
-        # chosen = np.array([x,y,z])
-        chosen = None
+        x = trial_x[chosen_index,local_index]
+        y = trial_y[chosen_index,local_index]
+        z = trial_z[chosen_index,local_index]
+        chosen = np.array([x,y,z])
+        # chosen = None
 
-        index_list = []
-        for mol in self.system.molecule_types['ChainSegment']:
-          if mol.properties['topology'] == 'tail':
-            for i in mol.properties['chain_ends']:
-              if i not in mol.properties['connected_to']:
-                index_list.append(i)
-        x = self.system.x[index_list]
-        y = self.system.y[index_list]
-        z = self.system.z[index_list]
-        aa = np.array([x,y,z]).T
-        anchor_pos = np.append(anchor_pos,aa,axis=0)
+        # index_list = []
+        # for mol in self.system.molecule_types['ChainSegment']:
+        #   if mol.properties['topology'] == 'tail':
+        #     for i in mol.properties['chain_ends']:
+        #       if i not in mol.properties['connected_to']:
+        #         index_list.append(i)
+        # x = self.system.x[index_list]
+        # y = self.system.y[index_list]
+        # z = self.system.z[index_list]
+        # aa = np.array([x,y,z]).T
+        # anchor_pos = np.append(anchor_pos,aa,axis=0)
 
         self.draw_trial(anchor_pos,beacon,grown,trials,orig,chosen)
-
-
-      ############
-      ## CHOOSE ##
-      ############
-      # If all of the rosen_weights are extremely small or zero, it means that
-      # the configuration is "stuck" and that all trial monomers are high energy.
-      # We abort the growth early in order to not waste time continuing the growth
-      # of a broken configuration.
-      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
-      if (not retrace) and np.all(rosen_weights[-1]==0.):
-        abort = True
-        return abort,None,None,None
-
-      if retrace:
-        chosen_index = 0
-      else:
-        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
-        chosen_index = choice(self.num_trials,p=trial_probabilities)
-
-      #need the chosen bias weight for the final acceptance
-      bias_weights.append(biases[chosen_index])
 
 
 

@@ -9,7 +9,7 @@ from typySim.engine.RosenbluthChain import RosenbluthChain
 from typySim.engine.MonteCarloMove import MonteCarloMove
 from typySim.core.cy.cyutil import n_closest
 
-class SpliceSC_CBMCMove(MonteCarloMove):
+class SwapSC_CBMCMove(MonteCarloMove):
   '''
   Definitions
   -----------
@@ -29,9 +29,9 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=10,viz=None):
-    super(SpliceSC_CBMCMove,self).__init__() #must call parent class' constructor
-    self.name='SpliceSC_CBMCMove'
+  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None):
+    super(SwapSC_CBMCMove,self).__init__() #must call parent class' constructor
+    self.name='SwapSC_CBMCMove'
     self.regrowth_types = regrowth_types
 
     with open(bias_pkl,'rb') as f:
@@ -42,14 +42,20 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     self.regrowth_max = regrowth_max
 
     # We'll pre-instatiate the rosen-chain so 
+    self.rosen_subchain1 = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=None)
+    self.rosen_subchain2 = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=None)
     self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz)
   def set_engine(self,engine):
     self.engine                  = engine
     self.system                  = engine.system
     self.rosen_chain.engine      = engine
     self.rosen_chain.system      = engine.system
+    self.rosen_subchain1.engine  = engine
+    self.rosen_subchain1.system  = engine.system
+    self.rosen_subchain2.engine  = engine
+    self.rosen_subchain2.system  = engine.system
   def _attempt(self):
-    self.reset('SPLC::')
+    self.reset('SWAP::')
 
     abort,mol1,mol2,counts = self.pick_mol()
 
@@ -83,7 +89,9 @@ class SpliceSC_CBMCMove(MonteCarloMove):
       self.string += 'bad_trial_move_new'
       self.accept = False
       self.rosen_chain.reset()
-      return 
+      self.rosen_subchain1.reset()
+      self.rosen_subchain2.reset()
+      return
 
     #####################
     ## TRACE OLD CHAIN ##
@@ -93,6 +101,8 @@ class SpliceSC_CBMCMove(MonteCarloMove):
       self.string += 'bad_trial_move_old'
       self.accept = False
       self.rosen_chain.reset()
+      self.rosen_subchain1.reset()
+      self.rosen_subchain2.reset()
       return
 
     #################################
@@ -119,16 +129,18 @@ class SpliceSC_CBMCMove(MonteCarloMove):
       self.Unew = self.rosen_chain.acceptance_package['U']
       self.rosen_chain.apply_acceptance_package()
 
-    # if accept:
-    #   print accept,mc_move_data['string']
-    #   self.engine.viz.clear()
-    #   self.engine.viz.draw_system(bonds=True)
-    #   self.engine.viz.show()
-    #   ist()
+    if self.accept:
+      print accept,mc_move_data['string']
+      self.engine.viz.clear()
+      self.engine.viz.draw_system(bonds=True)
+      self.engine.viz.show()
+      ist()
 
     self.string += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
     self.rosen_chain.reset()
-    return
+    self.rosen_subchain1.reset()
+    self.rosen_subchain2.reset()
+    return 
   def pick_mol(self):
     counts = {}
 
@@ -148,34 +160,26 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     for name,l in zip(['tail_beads','tie_beads','loop_beads'],[index_list_tail,index_list_tie,index_list_loop]):
       counts[name] = len(l)
 
-    index_list_tail_ends = []
-    for mol in tail_list: 
-      for i in mol.properties['chain_ends']:
-        if i not in mol.properties['connected_to']:
-          index_list_tail_ends.append(i)
+    
 
-    index_list = index_list_tail_ends[:]
+    # index_list = index_list_tail + index_list_tie + index_list_loop
+    mol_list = tail_list + tie_list + loop_list
 
-    index1 = choice(index_list)
-    mol1 = self.system.molecule_map[index1]
-    index_list = [i for i in index_list if i not in mol1.indices]
+    mol1 = choice(mol_list)
+    mol_list.remove(mol1)
     
     if mol1.size < self.regrowth_min+2:
       abort = True
       return abort,mol1,None,counts
 
-    x1 = self.system.x[index1]
-    y1 = self.system.y[index1]
-    z1 = self.system.z[index1]
-    x2Array = self.system.x[index_list]
-    y2Array = self.system.y[index_list]
-    z2Array = self.system.z[index_list]
+    x1,y1,z1 = mol1.properties['center_of_mass']
+    r2 = [mol.properties['center_of_mass'] for mol in mol_list]
+    x2Array,y2Array,z2Array = np.array(r2).T
 
     index_list_close,dist_list_close = n_closest(10,x1,y1,z1,x2Array,y2Array,z2Array,self.system.box)
     close_mask = (index_list_close!=-1)
     index_list_close = index_list_close[close_mask]
-    index2 = index_list[choice(index_list_close)]
-    mol2 = self.system.molecule_map[index2]
+    mol2 = mol_list[choice(index_list_close)]
     counts['num_close'] = len(index_list_close)
 
     # print mol1,mol2,index1,index2
@@ -212,40 +216,51 @@ class SpliceSC_CBMCMove(MonteCarloMove):
       S2--10--11--12--13--14--15--16--17--RR
 
     '''
-    if mol1.size<mol2.size:
-      mol1,mol2 = mol2,mol1
 
     indices1 = mol1.indices
     indices2 = mol2.indices
 
-    # We want to be growing in the direction away from the crystallite
-    if indices1[-1] in mol1.properties['connected_to']:
-      indices1 = indices1[::-1]
+    self.rosen_subchain1.set_indices(indices1,internal_growth=True,random_inversion=False)#,full_chain=True)
+    self.rosen_subchain2.set_indices(indices2,internal_growth=True,random_inversion=False)#,full_chain=True)
+    self.rosen_subchain1.build_arrays()
+    self.rosen_subchain2.build_arrays(index_shift = self.rosen_subchain1.length)
+    self.rosen_subchain1.copy_retrace_to_regrowth()
+    self.rosen_subchain2.copy_retrace_to_regrowth()
 
-    if indices2[-1] not in mol2.properties['connected_to']:
-      indices2 = indices2[::-1]
 
-    self.rosen_chain.set_indices(indices1,internal_growth=False,random_inversion=False)#,full_chain=True)
-    self.rosen_chain.build_arrays()
-    self.rosen_chain.copy_retrace_to_regrowth()
+    new_beacon1 = self.rosen_subchain2.retrace_beacons[0][0]
+    new_beacon2 = self.rosen_subchain1.retrace_beacons[0][0]
+    chain1_end_sys   = self.rosen_subchain1.indices[-1]
+    chain2_end_sys   = self.rosen_subchain2.indices[-1]
+    chain1_last_anchor   = self.rosen_subchain1.trial_indices[-2]
+    chain2_last_anchor   = self.rosen_subchain2.trial_indices[-2]
+    chain1_end_trial   = self.rosen_subchain1.trial_indices[-1]
+    chain2_end_trial   = self.rosen_subchain2.trial_indices[-1]
 
-    chain1_end_sys   = self.rosen_chain.indices[-1]
-    chain1_end_new   = self.rosen_chain.trial_indices[-1]
-    chain2_start_sys = indices2[0]
+    l1 = self.rosen_subchain1.length
+    l2 = self.rosen_subchain2.length
+    self.rosen_subchain1.regrowth_beacons = [(new_beacon1,l1-i) for i in range(l1)] 
+    self.rosen_subchain2.regrowth_beacons = [(new_beacon2,l2-i) for i in range(l2)] 
+    self.rosen_subchain1.regrowth_anchors[-1] = (new_beacon1,chain1_last_anchor)
+    self.rosen_subchain2.regrowth_anchors[-1] = (new_beacon2,chain2_last_anchor)
 
-    l1 = self.rosen_chain.length
-    self.rosen_chain.regrowth_beacons = [(chain2_start_sys,l1-i) for i in range(l1)] 
-    self.rosen_chain.regrowth_anchors[-1] += (chain2_start_sys,)
-
+    self.rosen_chain.combine(self.rosen_subchain1,self.rosen_subchain2)
 
     ## Need to build `acceptance package` i.e. what needs to be changed (beyond x,y,z,imx,imy,imz) if
     ## the move is accepted. 
     bonds = {'added':[], 'removed':[]}
-    bonds['added'].append([chain1_end_sys,chain2_start_sys])
+    bonds['added'].append([chain1_end_sys,new_beacon1])
+    bonds['added'].append([chain2_end_sys,new_beacon2])
+    bonds['removed'].append([chain1_end_sys,new_beacon2])
+    bonds['removed'].append([chain2_end_sys,new_beacon1])
 
     mod_mol1 = {}
     mod_mol1['molecule']     = mol1
-    mod_mol1['indices'] = indices1 + indices2
+    mod_mol1['indices'] = self.rosen_subchain1.low_indices + self.rosen_subchain1.indices + self.rosen_subchain2.high_indices
+
+    mod_mol2 = {}
+    mod_mol2['molecule']     = mol2
+    mod_mol2['indices'] = self.rosen_subchain2.low_indices + self.rosen_subchain2.indices + self.rosen_subchain1.high_indices
 
     self.rosen_chain.acceptance_package['bonds'] = bonds
-    self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1],'added':[],'removed':[mol2]}
+    self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1,mod_mol2],'added':[],'removed':[]}

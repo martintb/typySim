@@ -47,9 +47,8 @@ class FE_CBMCMove(MonteCarloMove):
     self.system               = engine.system
     self.rosen_chain.engine   = engine
     self.rosen_chain.system   = engine.system
-  @MonteCarloMove.counter
-  def attempt(self):
-    mc_move_data = {}
+  def _attempt(self):
+    self.reset('FE_CBMC::')
 
     ################################
     ## DETERMINE REGROWTH INDICES##
@@ -60,9 +59,10 @@ class FE_CBMCMove(MonteCarloMove):
     chain_length = len(indices)
 
     if chain_length<self.regrowth_min+2:
-      accept = False
-      mc_move_data['string'] = 'chain_is_too_short'
-      return accept,mc_move_data
+      self.technical_abort = True
+      self.accept  = False
+      self.string += 'chain_is_too_short'
+      return 
 
     self.rosen_chain.set_indices(mol.indices,internal_growth=True)
     self.rosen_chain.build_arrays()
@@ -83,18 +83,18 @@ class FE_CBMCMove(MonteCarloMove):
     ####################
     abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
-      mc_move_data['string'] = 'bad_trial_move_new'
-      accept = False
-      return accept,mc_move_data
+      self.string += 'bad_trial_move_new'
+      self.accept = False
+      return 
 
     #####################
     ## TRACE OLD CHAIN ##
     #####################
     abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
-      mc_move_data['string'] = 'bad_trial_move_old'
-      accept = False
-      return accept,mc_move_data
+      self.string += 'bad_trial_move_old'
+      self.accept = False
+      return 
 
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
@@ -105,28 +105,25 @@ class FE_CBMCMove(MonteCarloMove):
     # print 'BOTROSEN',bias_weights_new
     Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
     Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
-    mc_move_data['Wnew'] = Wnew
-    mc_move_data['Wold'] = Wold
-    mc_move_data['k'] = self.rosen_chain.length
 
     #######################
     ## ACCEPT OR REJECT? ##
     #######################
     if Wnew>Wold:
-      accept = True
+      self.accept = True
     else:
       ranf = np.random.rand()
       if ranf<(Wnew/Wold):
-        accept=True
+        self.accept=True
       else:
-        accept=False
+        self.accept=False
 
-    if accept:
-      mc_move_data['U'] = self.rosen_chain.acceptance_package['U']
+    if self.accept:
+      self.Unew = self.rosen_chain.acceptance_package['U']
       self.rosen_chain.apply_acceptance_package()
 
-    mc_move_data['string'] = 'FE_CBMC::Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
-    return accept,mc_move_data
+    self.string += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
+    return 
 
 
 

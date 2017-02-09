@@ -61,8 +61,7 @@ class SC_CBMCMove(MonteCarloMove):
     self.rosen_subchain2.system  = engine.system
     self.rosen_chain.engine      = engine
     self.rosen_chain.system      = engine.system
-  @MonteCarloMove.counter
-  def attempt(self):
+  def _attempt(self):
     mc_move_data = {}
 
     if random()>0.5:
