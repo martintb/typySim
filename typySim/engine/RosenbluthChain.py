@@ -44,11 +44,11 @@ class RosenbluthChain(object):
       the acceptance probability of this move. 
 
   '''
-  def __init__(self,num_trials,regrowth_min,regrowth_max,bias,viz=None):
+  def __init__(self,num_trials,regrowth_min,regrowth_max,beacon,viz=None):
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
     self.regrowth_max = regrowth_max
-    self.bias         = bias
+    self.beacon       = beacon
     self.rotateQ      = linalg.Quaternion()
     self.viz = viz
     self.reset()
@@ -422,7 +422,7 @@ class RosenbluthChain(object):
     trial_types = np.empty((self.num_trials,self.length),dtype=np.int)
 
     rosen_weights = []
-    bias_weights = []
+    beacon_weights = []
     for local_index,sys_index in enumerate(self.indices):
 
 
@@ -499,20 +499,20 @@ class RosenbluthChain(object):
           end_y = self.system.y[end_index]
           end_z = self.system.z[end_index]
 
-        ## Calculate guiding bias for all trial positions
+        ## Calculate guiding beacon for all trial positions
         dx = trial_x[:,local_index] - end_x
         dy = trial_y[:,local_index] - end_y
         dz = trial_z[:,local_index] - end_z
         dr = np.array([dx,dy,dz])
         all_dist = self.system.box.wrap_distances(dr[0],dr[1],dr[2])
 
-        biasx = self.bias[nbonds-1]['x']
-        biasy = self.bias[nbonds-1]['y']
-        biases = np.interp(all_dist,biasx,biasy,left=0,right=0)
+        beaconx = self.beacon[nbonds-1]['x']
+        beacony = self.beacon[nbonds-1]['y']
+        beacon_values = np.interp(all_dist,beaconx,beacony,left=0,right=0)
 
-        rosen_weights[-1] *= biases
+        rosen_weights[-1] *= beacon_values
       else:
-        biases = np.ones(self.num_trials)
+        beacon_values = np.ones(self.num_trials)
 
 
 
@@ -535,7 +535,7 @@ class RosenbluthChain(object):
         chosen_index = choice(self.num_trials,p=trial_probabilities)
 
       #need the chosen bias weight for the final acceptance
-      bias_weights.append(biases[chosen_index])
+      beacon_weights.append(beacon_values[chosen_index])
 
       #############
       ## SHOW IT ##
@@ -544,8 +544,8 @@ class RosenbluthChain(object):
       if self.viz is not None:
         print '===================={:02d}/{:02d}===================='.format(local_index,self.length-1)
         print 'ROSEN\n',rosen_weights[-1]
-        print 'BIAS\n',biases
-        #print 'CHOSEN,R,B,J',rosen_weights[-1][chosen_index],bias_weights[-1],new['J']
+        print 'BEACONS\n',beacon_values
+        #print 'CHOSEN,R,B,J',rosen_weights[-1][chosen_index],beacon_weights[-1],new['J']
         print '============================================='
 
         x = [self.system.x[i] for i in self.indices]
@@ -625,4 +625,4 @@ class RosenbluthChain(object):
       self.acceptance_package['imz'] = trial_imz[chosen_index,:]
       self.acceptance_package['U']   = trial_potential_energies[chosen_index]
 
-    return abort,rosen_weights,bias_weights,new['J']
+    return abort,rosen_weights,beacon_weights,new['J']

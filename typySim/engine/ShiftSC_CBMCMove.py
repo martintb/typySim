@@ -13,6 +13,10 @@ from typySim.core.cy.cyutil import n_closest
 
 class ShiftSC_CBMCMove(MonteCarloMove):
   '''
+  The ShiftSC move is a standard CBMC Regrowth move that either regrows the entire chain
+  or an internal segment of the chain.
+
+
   Definitions
   -----------
   local index :  [0,len(regrowth_mol.indices))
@@ -31,20 +35,20 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None):
+  def __init__(self,beacon_file,num_trials=30,regrowth_min=4,regrowth_max=20,viz=None,bias=None):
     super(ShiftSC_CBMCMove,self).__init__() #must call parent class' constructor
     self.name='ShiftSC_CBMCMove'
-    self.regrowth_types = regrowth_types
+    self.bias = None
 
-    with open(bias_pkl,'rb') as f:
-      self.bias = cPickle.load(f)
+    with open(beacon_file,'rb') as f:
+      self.beacon = cPickle.load(f)
 
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
     self.regrowth_max = regrowth_max
 
     # We'll pre-instatiate the rosen-chain so 
-    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz)
+    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.beacon,viz=viz)
   def set_engine(self,engine):
     self.engine                  = engine
     self.system                  = engine.system
@@ -78,7 +82,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,beacon_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       self.string += 'bad_trial_move_new'
       self.accept = False
@@ -88,7 +92,7 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,beacon_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       self.string += 'bad_trial_move_old'
       self.accept = False
@@ -98,8 +102,24 @@ class ShiftSC_CBMCMove(MonteCarloMove):
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold
+    # W: base rosenbluth factor of the configuration
+    # G: beacon factor used in fixed endpoint_CBMC
+    # J: constraint factor used for last step of fixed endpoint CBMC
+    # C: count bias based on how we selected the chain to peturb
+    # B: artificial bias used to control the 
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))
+    Gnew = np.product(beacon_weights_old) #old is correct
+    Jnew = Jnew
+    Cnew = 1 # chance of choosing chain is identical in both directions
+    Bnew = 1 # no topology change so no topology change bias
+    Wnew = Wnew * Gnew * Jnew * Cnew * Bnew
+
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))
+    Gold = np.product(beacon_weights_new) #new is correct
+    Jold = Jold
+    Cold = 1 # chance of choosing chain is identical in both directions
+    Bold = 1 # no topology change so no topology change bias
+    Wold = Wold * Gold * Jold * Cold * Bold
 
     #######################
     ## ACCEPT OR REJECT? ##
@@ -183,5 +203,6 @@ class ShiftSC_CBMCMove(MonteCarloMove):
 
     self.rosen_chain.build_arrays()
     self.rosen_chain.copy_retrace_to_regrowth()
+    self.rosen_chain.acceptance_package['delta_topology'] = {'ties':0, 'loops':0,'tails':0}
     self.rosen_chain.acceptance_package['bonds'] = {'added':[], 'removed':[]}
     self.rosen_chain.acceptance_package['molecules'] = {'modded':[],'added':[],'removed':[]}

@@ -422,5 +422,9 @@ x,y,z : float ndarrary, size (nbeads)
       mol.properties = molData['properties']
       self.add_molecule(mol)
 
+    for mol in self.molecules:
+      if mol.name == 'ChainSegment':
+        mol.update_properties()
+
     
 

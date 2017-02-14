@@ -30,10 +30,9 @@ class CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,num_trials=25,regrowth_min=2,regrowth_max=1000):
+  def __init__(self,num_trials=25,regrowth_min=2,regrowth_max=1000):
     super(CBMCMove,self).__init__() #must call parent class' constructor
     self.name='CBMCMove'
-    self.regrowth_types = regrowth_types
 
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
@@ -49,6 +48,12 @@ class CBMCMove(MonteCarloMove):
   def _attempt(self):
     self.reset('CBMC::')
 
+    if 'ChainSegment' not in self.system.molecule_types:
+      self.technical_abort = True
+      self.accept = False
+      self.string +=  'no_chain_segments'
+      return 
+
     ################################
     ## DETERMINE REGROWTH INDICES##
     ################################
@@ -63,11 +68,7 @@ class CBMCMove(MonteCarloMove):
       self.string +=  'chain_is_too_short'
       return 
 
-    self.rosen_chain.set_indices(mol.indices,internal_growth=False)
-    self.rosen_chain.build_arrays()
-    self.rosen_chain.copy_retrace_to_regrowth()
-    self.rosen_chain.acceptance_package['bonds'] = {'added':[], 'removed':[]}
-    self.rosen_chain.acceptance_package['molecules'] = {'modded':[],'added':[],'removed':[]}
+    self.build_rosen_chain(mol)
 
     ################################
     ## INITIAL ENERGY CALCULATION ##
@@ -122,7 +123,23 @@ class CBMCMove(MonteCarloMove):
       self.rosen_chain.apply_acceptance_package()
 
     self.string += 'Wnew/Wold: {:3.2e}/{:3.2e}={:5.4f}'.format(Wnew,Wold,Wnew/Wold)
+    self.rosen_chain.reset()
     return 
+  def build_rosen_chain(self,mol1):
+    '''
+
+    '''
+    indices = mol1.indices
+
+    if indices[-1] in mol1.properties['connected_to']:
+      indices = indices[::-1]
+
+    self.rosen_chain.set_indices(indices,internal_growth=False,random_inversion=False)
+
+    self.rosen_chain.build_arrays()
+    self.rosen_chain.copy_retrace_to_regrowth()
+    self.rosen_chain.acceptance_package['bonds'] = {'added':[], 'removed':[]}
+    self.rosen_chain.acceptance_package['molecules'] = {'modded':[],'added':[],'removed':[]}
 
 
 

@@ -48,9 +48,6 @@ class ChainSegment(Molecule):
     else:
       raise ValueError('ChainSegment has non_supported connectivity!')
 
-
-    
-
   def get_outer_bonds(self,sys_index,new_index):
     bonds = []
     for bond_j in list(self.system.bonds.bonds[sys_index]):

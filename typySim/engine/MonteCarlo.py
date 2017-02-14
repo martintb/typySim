@@ -32,7 +32,6 @@ class MonteCarlo(object):
     self.rates = {}
     self.rates['total_attempted'] = 0
     self.rates['total_accepted'] = 0
-    self.viz = None
     self.logger = logging.getLogger(__name__)
   def add_move(self,move,weight=1):
     move.set_engine(self)
@@ -44,7 +43,7 @@ class MonteCarlo(object):
     self.moveList.remove(move)
     del self.rates[move.name]
     del move
-  def run(self,num_attempts,log_rate = 5,viz=None,pkl_rate=None,pkl_name='trj.pkl'):
+  def run(self,num_attempts,log_rate = 5,viz=None,pkl_rate=None,pkl_name='trj.pkl',stat_rate=5):
     '''
     Contduct the Monte Carlo simulation.
 
@@ -71,10 +70,9 @@ class MonteCarlo(object):
     self.TPE_list = []
     self.TPE_list.append(sum(self.TPE.compute()))
 
-    totalWeight = float(sum(self.moveWeights))
-    move_probs = [i/totalWeight for i in self.moveWeights]
+    move_prob = [i/float(sum(self.moveWeights)) for i in self.moveWeights]
     for i in range(num_attempts):
-      move = choice(self.moveList,p=move_probs)
+      move = choice(self.moveList,p=move_prob)
       move.attempt()
 
       if not move.technical_abort:
@@ -100,6 +98,13 @@ class MonteCarlo(object):
         logStr +='Step {}/{}, rate: {:4.3f} {}'.format(i,num_attempts-1,rate,move.string) + bcolors.ENDC
         logStr += bcolors.ENDC
         self.logger.info(logStr)
+      if ((i%stat_rate)==0):
+        for move in self.moveList:
+          self.logger.info('Move Rate => {}'.format(move))
+        for topo in ['tail','loop','tie']:
+          count = len([mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']==topo])
+          self.logger.info('Count {:4s} => {}'.format(topo.upper(),count))
+
 
       if (viz is not None) and move.accept and (i%log_rate)==0:
         viz.clear()
@@ -129,7 +134,14 @@ class MonteCarlo(object):
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
+    self.logger.info('=============================================')
     self.logger.info('Acceptance rate: {}/{} = {}'.format(accepted,attempted,rate))
+    for move in self.moveList:
+      self.logger.info('Final Move Rate => {}'.format(move))
+    for topo in ['tail','loop','tie']:
+      count = len([mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']==topo])
+      self.logger.info('Final Count {:4s} => {}'.format(topo.upper(),count))
+    self.logger.info('=============================================')
 
     if pkl_rate is not None:
       self.logger.info('Logging trajectory to {}'.format(pkl_name))

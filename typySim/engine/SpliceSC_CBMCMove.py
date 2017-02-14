@@ -29,20 +29,20 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     Represents the index of one of the possibi
 
   '''
-  def __init__(self,regrowth_types,bias_pkl,num_trials=30,regrowth_min=4,regrowth_max=10,viz=None):
+  def __init__(self,beacon_file,num_trials=30,regrowth_min=4,regrowth_max=10,viz=None,bias=None):
     super(SpliceSC_CBMCMove,self).__init__() #must call parent class' constructor
     self.name='SpliceSC_CBMCMove'
-    self.regrowth_types = regrowth_types
+    self.bias = bias
 
-    with open(bias_pkl,'rb') as f:
-      self.bias = cPickle.load(f)
+    with open(beacon_file,'rb') as f:
+      beacon = cPickle.load(f)
 
     self.num_trials   = num_trials
     self.regrowth_min = regrowth_min
     self.regrowth_max = regrowth_max
 
     # We'll pre-instatiate the rosen-chain so 
-    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,self.bias,viz=viz)
+    self.rosen_chain = RosenbluthChain(num_trials,regrowth_min,regrowth_max,beacon,viz=viz)
   def set_engine(self,engine):
     self.engine                  = engine
     self.system                  = engine.system
@@ -78,7 +78,7 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     ####################
     ## GROW NEW CHAIN ##
     ####################
-    abort,rosen_weights_new,bias_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
+    abort,rosen_weights_new,beacon_weights_new,Jnew = self.rosen_chain.calc_rosenbluth(UBase,retrace=False)
     if abort:
       self.string += 'bad_trial_move_new'
       self.accept = False
@@ -88,20 +88,49 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     #####################
     ## TRACE OLD CHAIN ##
     #####################
-    abort,rosen_weights_old,bias_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
+    abort,rosen_weights_old,beacon_weights_old,Jold = self.rosen_chain.calc_rosenbluth(UBase,retrace=True)
     if abort:
       self.string += 'bad_trial_move_old'
       self.accept = False
       self.rosen_chain.reset()
       return
 
+    ###################################
+    ## CALCULATE TOPOLOGICAL CHANGES ##
+    ###################################
+    loopsNew = counts['loops'] + self.rosen_chain.acceptance_package['delta_topology']['loops']
+    tiesNew  = counts['ties']  + self.rosen_chain.acceptance_package['delta_topology']['ties']
+    tailsNew = counts['tails'] + self.rosen_chain.acceptance_package['delta_topology']['tails']
+    loopsOld = counts['loops'] 
+    tiesOld  = counts['ties']  
+    tailsOld = counts['tails'] 
+
     #################################
     ## CALCULATE FULL ROSEN FACTOR ##
     #################################
-    count_new = float(counts['num_close'])
-    count_old = float(counts['ties'] + counts['loops'] + 1)
-    Wnew = np.product(np.sum(rosen_weights_new,axis=1))*np.product(bias_weights_old)*Jnew# *1/count_new
-    Wold = np.product(np.sum(rosen_weights_old,axis=1))*np.product(bias_weights_new)*Jold# *1/count_old
+    # W: base rosenbluth factor of the configuration
+    # G: beacon factor used in fixed endpoint_CBMC
+    # J: constraint factor used for last step of fixed endpoint CBMC
+    # C: count bias based on how we selected the chain to peturb
+    # B: artificial bias used to control the 
+    Wnew = np.product(np.sum(rosen_weights_new,axis=1))
+    Gnew = np.product(beacon_weights_old) #old is correct
+    Cnew = 1
+    Bnew = self.bias.factor(**self.rosen_chain.acceptance_package['delta_topology'])
+    Wnew = Wnew * Gnew * Jnew * Cnew * Bnew
+
+    Wold = np.product(np.sum(rosen_weights_old,axis=1))
+    Gold = np.product(beacon_weights_new) #new is correct
+    Jold = Jold
+    Cold = 1
+    Bold = 1 #self.bias.factor(ties=tiesOld,tails=tailsOld,loops=loopsOld)
+    Wold = Wold * Gold * Jold * Cold * Bold
+
+    # print'===================================================='
+    # print 'SPLC::Wnew,Wold,Wnew/Wold',Wnew,Wold,Wnew/Wold
+    # print 'SPLC::Bnew,Bold',Bnew,Bold,Bnew/Bold
+    # print 'SPLC::OLD::ties,loops,tails',tiesOld,tailsOld,loopsOld
+    # print 'SPLC::NEW::ties,loops,tails',tiesNew,tailsNew,loopsNew
 
     #######################
     ## ACCEPT OR REJECT? ##
@@ -119,8 +148,12 @@ class SpliceSC_CBMCMove(MonteCarloMove):
       self.Unew = self.rosen_chain.acceptance_package['U']
       self.rosen_chain.apply_acceptance_package()
 
-    # if accept:
-    #   print accept,mc_move_data['string']
+    # if self.accept:
+    #   print Wnew,Gnew,Cnew,Bnew
+    #   print loopsNew,tiesNew,tailsNew
+    #   print Wold,Gold,Cold,Bold
+    #   print loopsOld,tiesOld,tailsOld
+    #   print self.string
     #   self.engine.viz.clear()
     #   self.engine.viz.draw_system(bonds=True)
     #   self.engine.viz.show()
@@ -249,3 +282,17 @@ class SpliceSC_CBMCMove(MonteCarloMove):
 
     self.rosen_chain.acceptance_package['bonds'] = bonds
     self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1],'added':[],'removed':[mol2]}
+
+    #since these are both tails, we can cheat with the .values()[0] magic
+    cmol1 = mol1.properties['connected_to'].values()[0]['molecule']
+    cmol2 = mol2.properties['connected_to'].values()[0]['molecule']
+    if cmol1 is cmol2:
+      tie_change  =  0
+      loop_change = +1
+      tail_change = -2
+    else:
+      tie_change  = +1
+      loop_change =  0
+      tail_change = -2
+
+    self.rosen_chain.acceptance_package['delta_topology'] = {'ties':tie_change, 'loops':loop_change,'tails':tail_change}
