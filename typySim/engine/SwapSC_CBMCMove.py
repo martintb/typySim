@@ -1,6 +1,7 @@
 import cPickle
 import numpy as np
-from numpy.random import randint,random,choice import ipdb as pdb; ist = pdb.set_trace
+from numpy.random import randint,random,choice 
+import ipdb as pdb; ist = pdb.set_trace
 
 from typySim import molecule
 from typySim.geometry import linalg
@@ -17,9 +18,7 @@ class SwapSC_CBMCMove(MonteCarloMove):
     to access the indices and data arrays for the regrowing chain.
 
   sys index : [0,self.system.nbeads)
-    Global index of a bead in the system arrays (e.g. self.system.x ). This 
-    value ranges from .
-
+    Global index of a bead in the system arrays (e.g. self.system.x ). This value ranges from .  
   new index : [self.system.nbeads,self.system.nbeads+len(regrowth_mol.indices))
     Global index of the trial_move bead. This value ranges from self.system to
     the number of beads being regrown
@@ -71,13 +70,14 @@ class SwapSC_CBMCMove(MonteCarloMove):
     # self.build_rosen_chain(mol1,mol2)
 
     result = self.pick_mol2()
-    if result[0] == False:
+    if result[0] == True:
       self.technical_abort = True
       self.accept=False
       self.string += result[1]
       return
     _,mol1,mol2,counts,index1,index2 = result
     self.build_rosen_chain(mol1,mol2)
+    # self.build_rosen_chain2(mol1,mol2,index1,index2)
 
     ################################
     ## INITIAL ENERGY CALCULATION ##
@@ -219,6 +219,7 @@ class SwapSC_CBMCMove(MonteCarloMove):
     # print mol2.properties
 
 
+
     if mol2.size < self.regrowth_min+2:
       abort = True
       return abort,mol1,mol2,counts
@@ -231,12 +232,14 @@ class SwapSC_CBMCMove(MonteCarloMove):
     tail_list = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='tail']
     tie_list  = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='tie']
     loop_list = [mol for mol in self.system.molecule_types['ChainSegment'] if mol.properties['topology']=='loop']
+    total_count = 0
     for name,l in zip(['tails','ties','loops'],[tail_list,tie_list,loop_list]):
       counts[name] = len(l)
+      total_count += len(l)
 
-    if len(tail_list)<2:
+    if total_count<2:
       abort = True
-      return abort,'not_enough_tails'
+      return abort,'not_enough_chains'
 
     index_list_tail = [i for mol in tail_list for i in mol.indices]
     index_list_tie  = [i for mol in tie_list for i in mol.indices]
@@ -253,7 +256,7 @@ class SwapSC_CBMCMove(MonteCarloMove):
       return abort,'chain1_too_short'
 
     index2_list = self.system.box.neighbor_list.get_neighbors_by_index(index1)
-    index2_list = [i for i in index2_list if i not in mol1.indices]
+    index2_list = [i for i in index2_list if (i not in mol1.indices) and (self.system.molecule_map[i].name=='ChainSegment')]
     if len(index2_list)==0:
       abort = True
       return abort,'no_nearby_beads'
@@ -308,6 +311,97 @@ class SwapSC_CBMCMove(MonteCarloMove):
 
     self.rosen_subchain1.set_indices(indices1,internal_growth=True,random_inversion=False)#,full_chain=True)
     self.rosen_subchain2.set_indices(indices2,internal_growth=True,random_inversion=False)#,full_chain=True)
+    self.rosen_subchain1.build_arrays()
+    self.rosen_subchain2.build_arrays(index_shift = self.rosen_subchain1.length)
+    self.rosen_subchain1.copy_retrace_to_regrowth()
+    self.rosen_subchain2.copy_retrace_to_regrowth()
+
+
+    new_beacon1          = self.rosen_subchain2.retrace_beacons[0][0]
+    new_beacon2          = self.rosen_subchain1.retrace_beacons[0][0]
+    chain1_end_sys       = self.rosen_subchain1.indices[-1]
+    chain2_end_sys       = self.rosen_subchain2.indices[-1]
+    chain1_last_anchor   = self.rosen_subchain1.trial_indices[-2]
+    chain2_last_anchor   = self.rosen_subchain2.trial_indices[-2]
+    chain1_end_trial     = self.rosen_subchain1.trial_indices[-1]
+    chain2_end_trial     = self.rosen_subchain2.trial_indices[-1]
+
+    l1 = self.rosen_subchain1.length
+    l2 = self.rosen_subchain2.length
+    self.rosen_subchain1.regrowth_beacons = [(new_beacon1,l1-i) for i in range(l1)] 
+    self.rosen_subchain2.regrowth_beacons = [(new_beacon2,l2-i) for i in range(l2)] 
+    self.rosen_subchain1.regrowth_anchors[-1] = (new_beacon1,chain1_last_anchor)
+    self.rosen_subchain2.regrowth_anchors[-1] = (new_beacon2,chain2_last_anchor)
+
+    self.rosen_chain.combine(self.rosen_subchain1,self.rosen_subchain2)
+
+    ## Need to build `acceptance package` i.e. what needs to be changed (beyond x,y,z,imx,imy,imz) if
+    ## the move is accepted. 
+    bonds = {'added':[], 'removed':[]}
+    bonds['added'].append([chain1_end_sys,new_beacon1])
+    bonds['added'].append([chain2_end_sys,new_beacon2])
+    bonds['removed'].append([chain1_end_sys,new_beacon2])
+    bonds['removed'].append([chain2_end_sys,new_beacon1])
+
+    mod_mol1 = {}
+    mod_mol1['molecule']     = mol1
+    mod_mol1['indices'] = self.rosen_subchain1.low_indices + self.rosen_subchain1.indices + self.rosen_subchain2.high_indices
+
+    mod_mol2 = {}
+    mod_mol2['molecule']     = mol2
+    mod_mol2['indices'] = self.rosen_subchain2.low_indices + self.rosen_subchain2.indices + self.rosen_subchain1.high_indices
+
+    self.rosen_chain.acceptance_package['bonds'] = bonds
+    self.rosen_chain.acceptance_package['molecules'] = {'modded':[mod_mol1,mod_mol2],'added':[],'removed':[]}
+
+    tie_change  = 0
+    tail_change = 0
+    loop_change = 0
+    for mol in [mol1,mol2]:
+      if mol.properties['topology'] == 'tie':
+        tie_change   -= 1
+      elif mol.properties['topology'] == 'loop':
+        loop_change  -= 1
+      elif mol.properties['topology'] == 'tail':
+        tail_change  -= 1
+
+
+    mol1_connect =     [mol1.properties['connected_to'].get(mod_mol1['indices'][0] ,None)]
+    mol1_connect.append(mol2.properties['connected_to'].get(mod_mol1['indices'][-1],None))
+    mol2_connect =     [mol2.properties['connected_to'].get(mod_mol2['indices'][0] ,None)]
+    mol2_connect.append(mol1.properties['connected_to'].get(mod_mol2['indices'][-1],None))
+
+    for cmol1,cmol2 in [mol1_connect,mol2_connect]:
+      if (cmol1 is None) or (cmol2 is None):
+        tail_change += 1
+      elif cmol1['molecule'] is cmol2['molecule']:
+        loop_change += 1
+      elif cmol1['molecule'] is not cmol2['molecule']:
+        tie_change  += 1
+      elif (cmol1 is None) and (cmol2 is None):
+        raise ValueError('Something is wrong with SwapSC topology shift math')
+    
+    self.rosen_chain.acceptance_package['delta_topology'] = {'ties':tie_change, 'loops':loop_change,'tails':tail_change}
+  def build_rosen_chain2(self,mol1,mol2,index1,index2):
+    '''
+
+    '''
+
+
+    indices1 = mol1.indices
+    if mol1.properties['topology'] == 'tail':
+      # We want to be growing in the direction away from the crystallite
+      if indices1[-1] in mol1.properties['connected_to']:
+        indices1 = indices1[::-1]
+
+    indices2 = mol2.indices
+    if mol2.properties['topology'] == 'tail':
+      # We want to be growing in the direction away from the crystallite
+      if indices2[-1] in mol2.properties['connected_to']:
+        indices2 = indices2[::-1]
+
+    self.rosen_subchain1.set_indices_around(indices1,index1,random_inversion=False)#,full_chain=True)
+    self.rosen_subchain2.set_indices_around(indices2,index2,random_inversion=False)#,full_chain=True)
     self.rosen_subchain1.build_arrays()
     self.rosen_subchain2.build_arrays(index_shift = self.rosen_subchain1.length)
     self.rosen_subchain1.copy_retrace_to_regrowth()

@@ -120,6 +120,28 @@ class RosenbluthChain(object):
     self.indices                = self.all_indices[start_index_local:(end_index_local+1)] #self
     self.low_indices            = self.all_indices[:start_index_local] #self
     self.high_indices           = self.all_indices[(end_index_local+1):] #self
+  def set_indices_around(self,indices,around,full_chain=False,random_inversion=True):
+    self.internal_growth = True
+
+    if random_inversion and random()>0.5:
+      self.growing_up = False
+      self.all_indices = indices[::-1]
+    else:
+      self.growing_up = True
+      self.all_indices = indices[::1]
+
+    chain_length = len(self.all_indices)
+
+    start_index_local        = list(self.all_indices).index(around)
+    max_regrowth_index_local = min(start_index_local+self.regrowth_max,chain_length-1) 
+
+    bound1 = start_index_local+self.regrowth_min
+    bound2 = max_regrowth_index_local+1
+    end_index_local       = randint(bound1,bound2)-1
+
+    self.indices                = self.all_indices[start_index_local:(end_index_local+1)] #self
+    self.low_indices            = self.all_indices[:start_index_local] #self
+    self.high_indices           = self.all_indices[(end_index_local+1):] #self
   def get_outer_anchors(self,sys_index):
     anchor_list = []
     for bond_j in list(self.system.bonds.bonds[sys_index]):
