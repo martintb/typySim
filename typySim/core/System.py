@@ -419,7 +419,7 @@ x,y,z : float ndarrary, size (nbeads)
 
       mol = molType()
       mol.indices    = molData['indices']
-      mol.properties = molData['properties']
+      #mol.properties = molData['properties']
       self.add_molecule(mol)
 
     for mol in self.molecules:

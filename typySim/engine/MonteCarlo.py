@@ -126,9 +126,12 @@ class MonteCarlo(object):
         pkl[i]['molecules'] = []
         for mol in self.system.molecules:
           mol_dict = {}
-          mol_dict['name']       = mol.name
-          mol_dict['indices']    = mol.indices
-          mol_dict['properties'] = mol.properties
+          mol_dict['name']       = str(mol.name)
+          mol_dict['indices']    = list(mol.indices)
+          mol_dict['properties'] = {k:v for k,v in mol.properties.items()}
+          if 'connected_to' in mol_dict['properties']:
+            for k in mol_dict['properties']['connected_to'].keys():
+              mol_dict['properties']['connected_to'][k]['molecule'] = None
           pkl[i]['molecules'].append(mol_dict)
 
 
