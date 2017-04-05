@@ -2,6 +2,7 @@ from numpy.random import choice
 import logging
 import cPickle
 import numpy as np
+import time
 
 import ipdb; ist = ipdb.set_trace
 
@@ -45,7 +46,7 @@ class MonteCarlo(object):
     del move
   def run(self,num_attempts,log_rate = 5,viz=None,pkl_rate=None,pkl_name='trj.pkl',stat_rate=5):
     '''
-    Contduct the Monte Carlo simulation.
+    Conduct the Monte Carlo simulation.
 
     Parameters
     ----------
@@ -55,6 +56,8 @@ class MonteCarlo(object):
     log_rate : int, *Optional*
         The rate at which the logger (at the INFO level) should log updates.
     '''
+
+    start_time = time.time()
     # if self.system.neighbor_list is not None:
     # self.system.neighbor_list.build_nlist(self.system.x,self.s,central_origin=True)
 
@@ -95,10 +98,10 @@ class MonteCarlo(object):
         else:
           color = bcolors.FAIL
         logStr  = color 
-        logStr +='Step {}/{}, rate: {:4.3f} {}'.format(i,num_attempts-1,rate,move.string) + bcolors.ENDC
+        logStr +='Step {}/{}, U:{:4.2e} rate: {:4.3f} {}'.format(i,num_attempts-1,self.TPE_list[-1],rate,move.string) + bcolors.ENDC
         logStr += bcolors.ENDC
         self.logger.info(logStr)
-      if ((i%stat_rate)==0):
+      if stat_rate>0 and ((i%stat_rate)==0):
         for move in self.moveList:
           self.logger.info('Move Rate => {}'.format(move))
         for topo in ['tail','loop','tie']:
@@ -111,7 +114,7 @@ class MonteCarlo(object):
         viz.draw_system(bonds=True)
         viz.show(blocking=False,resetCamera=False)
 
-      if (pkl_rate is not None) and (i%pkl_rate)==0:
+      if (pkl_rate is not None) and ((i%pkl_rate)==0 or (i==(num_attempts-1))):
         pkl[i] = {}
         pkl[i]['nbeads']    = np.array(self.system.nbeads)
         pkl[i]['L']         = np.array(self.system.box.L)
@@ -150,6 +153,11 @@ class MonteCarlo(object):
       self.logger.info('Logging trajectory to {}'.format(pkl_name))
       with open(pkl_name,'wb') as f:
         cPickle.dump(pkl,f,-1)
+
+    end_time = time.time()
+    run_time_s = end_time - start_time
+    run_time_h = (end_time - start_time)/3600
+    self.logger.info('Total Execution Time: {} seconds or {} hours'.format(run_time_s,run_time_h))
 
     if (viz is not None):
       viz.clear()
