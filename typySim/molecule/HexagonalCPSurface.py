@@ -3,19 +3,20 @@ from ..geometry import shapes
 import numpy as np
 from math import ceil
 
-class HexagonalSurface(Molecule):
+class HexagonalCPSurface(Molecule):
   def __init__(self):
-    super(HexagonalSurface,self).__init__() #Need to call parent class' constructor
-    self.name = 'HexagonalSurface'
+    super(HexagonalCPSurface,self).__init__() #Need to call parent class' constructor
+    self.name = 'HexagonalCPSurface'
   def build(self,lx,ly,nz,diameter=1.0,topType=0,bottomType=2,middleType=1):
     #Find a close hexagonal grid for the requested box size
-    nx,ny,_ = shapes.hexagonal.position2Index(lx,ly)
+    nx,ny = shapes.hexagonalcp.position2Index(lx,ly)
+
     # nx and ny must be even for pbc to work
     nx = int(ceil(nx/2.0)*2.0)
     ny = int(ceil(ny/2.0)*2.0)
+
     # Find the actual box size based on the fitted nx and ny
-    lx_fit,ly_fit,_ = shapes.hexagonal.index2Position(nx,ny)
-    
+    lx_fit,ly_fit= shapes.hexagonalcp.index2Position(nx,ny)
 
     logStr = ''' HexagonalSurface Created!
     Initial Box (lx,ly): ({},{}) 
@@ -31,7 +32,7 @@ class HexagonalSurface(Molecule):
     kwargs['topType']    = topType
     kwargs['middleType'] = middleType
     kwargs['bottomType'] = bottomType
-    molData = shapes.hexagonal.surface(**kwargs)
+    molData = shapes.hexagonalcp.surface(**kwargs)
     boxData = {}
     boxData['lx'] = lx_fit
     boxData['ly'] = ly_fit

@@ -1,27 +1,6 @@
 from math import sqrt
 import numpy as np
 
-
-def index2Position(i,j,k=0,r=0.5):
-  '''
-  i,j,k = x,y,z bead indices
-  r = surface bead radius
-  '''
-  x = (2*i+((j)%2))*r
-  y = sqrt(3)*(j)*r
-  z = 2.0 * k * r
-  return (x,y,z)
-
-def position2Index(x,y,z=0,r=0.5):
-  '''
-  x,y = bead position
-  r = surface bead radius
-  '''
-  j = int(float(y)/(sqrt(3)*r))
-  i = int(0.5*(float(x)/r - ((j)%2)))
-  k = int(float(z)/r/2.0)
-  return (i,j,k)
-
 def surface(nx,ny,nz,diameter,
             shift=True,
             topType=0,
@@ -32,19 +11,14 @@ def surface(nx,ny,nz,diameter,
   positions = []                           
   types = []
   chains = {}
-  # bonds = []
-
-  rowSize = nx
-  layerSize = nx*ny
-  n1d = nx
-  n2d = nx*ny
-
   index3D = 0
   for k in range(nz):                      
     index2D = 0
     for j in range(ny):                    
       for i in range(nx):                  
-        x,y,z = index2Position(i,j,k,r=radius)
+        x = (2*i + ((j+k)%2))*radius
+        y = sqrt(3)*(j+(k%2)/3.0)*radius
+        z = 2.0/3.0 * sqrt(6) * k * radius
         positions.append([x,y,z])
 
         if k==0:
@@ -54,14 +28,10 @@ def surface(nx,ny,nz,diameter,
         else:
           types.append(middleType)
 
-        # if k>0:
-        #   bead1 = i + j*n1d + (k-0)*n2d
-        #   bead2 = i + j*n1d + (k-1)*n2d
-        #   bonds.append([bead1,bead2])
         try:
-          chains[index2D].append(index3D)
+          chains[(index2D,k%2)].append(index3D)
         except KeyError:
-          chains[index2D] = [index3D]
+          chains[(index2D,k%2)] = [index3D]
         index2D += 1
         index3D += 1
   positions = np.array(positions)
@@ -80,3 +50,21 @@ def surface(nx,ny,nz,diameter,
   molData['bonds'] = bonds
   molData['chains'] = chains
   return molData
+
+def index2Position(i,j,k=0,r=0.5):
+  '''
+  i,j,k = x,y,z bead indices
+  r = surface bead radius
+  '''
+  x = (2*i+((j+k)%2))*r
+  y = sqrt(3)*(j+(k%2)/3.0)*r
+  return (x,y)
+
+def position2Index(x,y,k=0.0,r=0.5):
+  '''
+  x,y = bead position
+  r = surface bead radius
+  '''
+  j = int(float(y)/(sqrt(3)*r) - (k%2)/3.0)
+  i = int(0.5*(float(x)/r - ((j+k)%2)))
+  return (i,j)
