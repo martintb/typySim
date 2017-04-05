@@ -11,12 +11,13 @@ class EndGrowthMove(MonteCarloMove):
   '''
   Append or remove beads to the ends of growing chains
   '''
-  def __init__(self,surface_growth_type,chain_end_type,chain_middle_type):
+  def __init__(self,surface_neutral_type,surface_growth_type,chain_end_type,chain_middle_type):
     super(EndGrowthMove,self).__init__() #must call parent class' constructor
     self.name='EndGrowthMove'
     self.growth_types = [surface_growth_type,chain_end_type]
     self.chain_end_type = chain_end_type
     self.chain_middle_type = chain_middle_type
+    self.surface_neutral_type = surface_neutral_type
   def _attempt(self):
     self.reset('EndGrowth')
     Uold = self.engine.TPE_list[-1]
@@ -75,6 +76,10 @@ class EndGrowthMove(MonteCarloMove):
           growth_mol.properties['chain_ends'].remove(growth_index)
 
       else: # attaching bead to surface
+
+        #end of chain is no longer a growth type
+        self.system.types[growth_index] = self.surface_neutral_type
+
         mol_index = np.where(self.system.molecules==growth_mol)[0]
         #we need a new chain molecule to begin growing
         NewChainSegment = molecule.ChainSegment()
