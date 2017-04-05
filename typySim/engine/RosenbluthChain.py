@@ -537,34 +537,15 @@ class RosenbluthChain(object):
         beacon_values = np.ones(self.num_trials)
 
 
-
-      ############
-      ## CHOOSE ##
-      ############
-      # If all of the rosen_weights are extremely small or zero, it means that
-      # the configuration is "stuck" and that all trial monomers are high energy.
-      # We abort the growth early in order to not waste time continuing the growth
-      # of a broken configuration.
-      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
-      if (not retrace) and np.all(rosen_weights[-1]==0.):
-        abort = True
-        return abort,None,None,None
-
-      if retrace:
-        chosen_index = 0
-      else:
-        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
-        chosen_index = choice(self.num_trials,p=trial_probabilities)
-
-      #need the chosen bias weight for the final acceptance
-      beacon_weights.append(beacon_values[chosen_index])
-
       #############
       ## SHOW IT ##
       #############
       # if not retrace and self.viz is not None:
       if self.viz is not None:
         print '===================={:02d}/{:02d}===================='.format(local_index,self.length-1)
+        print 'U\n',U
+        print 'UBOND\n',UBond
+        print 'UBASE\n',UBase
         print 'ROSEN\n',rosen_weights[-1]
         print 'BEACONS\n',beacon_values
         #print 'CHOSEN,R,B,J',rosen_weights[-1][chosen_index],beacon_weights[-1],new['J']
@@ -603,11 +584,11 @@ class RosenbluthChain(object):
         else:
           grown = None
 
-        x = trial_x[chosen_index,local_index]
-        y = trial_y[chosen_index,local_index]
-        z = trial_z[chosen_index,local_index]
-        chosen = np.array([x,y,z])
-        # chosen = None
+        # x = trial_x[chosen_index,local_index]
+        # y = trial_y[chosen_index,local_index]
+        # z = trial_z[chosen_index,local_index]
+        # chosen = np.array([x,y,z])
+        chosen = None
 
         # index_list = []
         # for mol in self.system.molecule_types['ChainSegment']:
@@ -623,6 +604,28 @@ class RosenbluthChain(object):
 
         self.draw_trial(anchor_pos,beacon,grown,trials,orig,chosen)
 
+
+
+      ############
+      ## CHOOSE ##
+      ############
+      # If all of the rosen_weights are extremely small or zero, it means that
+      # the configuration is "stuck" and that all trial monomers are high energy.
+      # We abort the growth early in order to not waste time continuing the growth
+      # of a broken configuration.
+      # if (not retrace) and np.sum(rosen_weights[-1])<1e-16:
+      if (not retrace) and np.all(rosen_weights[-1]==0.):
+        abort = True
+        return abort,None,None,None
+
+      if retrace:
+        chosen_index = 0
+      else:
+        trial_probabilities = rosen_weights[-1]/np.sum(rosen_weights[-1])
+        chosen_index = choice(self.num_trials,p=trial_probabilities)
+
+      #need the chosen bias weight for the final acceptance
+      beacon_weights.append(beacon_values[chosen_index])
 
 
       # Equalize all trial_values at the current step to the chosen_value

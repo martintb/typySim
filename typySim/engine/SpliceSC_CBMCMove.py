@@ -171,7 +171,7 @@ class SpliceSC_CBMCMove(MonteCarloMove):
     for name,l in zip(['tails','ties','loops'],[tail_list,tie_list,loop_list]):
       counts[name] = len(l)
 
-    if len(tail_list)<2:
+    if sum([counts[i] for i in ['tails','ties','loops']])<2:
       abort = True
       return abort,None,None,counts
 
