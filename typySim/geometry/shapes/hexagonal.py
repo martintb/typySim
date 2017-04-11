@@ -2,24 +2,30 @@ from math import sqrt
 import numpy as np
 
 
-def index2Position(i,j,k=0,r=0.5):
+def index2Position(i,j,k=0,r=0.5,alternate_z=False):
   '''
   i,j,k = x,y,z bead indices
   r = surface bead radius
   '''
   x = (2*i+((j)%2))*r
   y = sqrt(3)*(j)*r
-  z = 2.0 * k * r
+  if alternate_z:
+    z = 2.0 * k * r - (j%2)*r
+  else:
+    z = 2.0 * k * r
   return (x,y,z)
 
-def position2Index(x,y,z=0,r=0.5):
+def position2Index(x,y,z=0,r=0.5,alternate_z=False):
   '''
   x,y = bead position
   r = surface bead radius
   '''
   j = int(float(y)/(sqrt(3)*r))
   i = int(0.5*(float(x)/r - ((j)%2)))
-  k = int(float(z)/r/2.0)
+  if alternate_z:
+    k = int(float(z-(j%2)*r)/r/2.0)
+  else:
+    k = int(float(z)/r/2.0)
   return (i,j,k)
 
 def surface(nx,ny,nz,diameter,
@@ -27,6 +33,7 @@ def surface(nx,ny,nz,diameter,
             topType=0,
             middleType=1,
             bottomType=2,
+            alternate_z=False
             ):
   radius = diameter/2.0                    
   positions = []                           
@@ -44,7 +51,7 @@ def surface(nx,ny,nz,diameter,
     index2D = 0
     for j in range(ny):                    
       for i in range(nx):                  
-        x,y,z = index2Position(i,j,k,r=radius)
+        x,y,z = index2Position(i,j,k,r=radius,alternate_z=alternate_z)
         positions.append([x,y,z])
 
         if k==0:
