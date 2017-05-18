@@ -4,6 +4,7 @@ from typySim.molecule import DummyMolecule
 from typySim.core import Selection
 from typySim.core import BondList
 from typySim.core import PairTable
+import logging
 
 class System(object):
   ''' 
@@ -107,6 +108,8 @@ x,y,z : float ndarrary, size (nbeads)
     self.DummyMolecule = DummyMolecule()
 
     self.max_nbonds = 5 #arbitrary maximum on the number of bonds a single atom can have
+
+    self.logger = logging.getLogger(__name__)
   def set_trial_move(self,x,y,z,imx,imy,imz,types,bonds):
     if type(x) is not np.array:
       x = np.array(x,dtype=np.float)
@@ -148,7 +151,7 @@ x,y,z : float ndarrary, size (nbeads)
   @engine.setter
   def engine(self,engine):
     if self._engine is not None:
-      warngings.warn('--> Replacing currently loaded engine: {}'.format(self._engine.name))
+      self.logger.warning('Replacing currently loaded engine: {}'.format(self._engine.name))
     engine.system = self
     self._engine = engine
   @property
