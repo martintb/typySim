@@ -69,4 +69,12 @@ class Quaternion(object):
         q3 = self.inverse_qvector
         q4 = self.hamilton_product(self.hamilton_product(q1,q2),q3)
         return np.array(q4[1:])
+    def reflect(self,vector,rotation_axis=None,rotation_angle=None):
+        if (rotation_axis is not None) and (rotation_angle is not None):
+            self.set_rotation(rotation_axis,rotation_angle)
+        q1 = self.qvector
+        q2 = (0,) + tuple(vector)
+        q3 = self.qvector
+        q4 = self.hamilton_product(self.hamilton_product(q1,q2),q3)
+        return np.array(q4[1:])
         
