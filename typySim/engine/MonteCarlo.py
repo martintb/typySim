@@ -109,7 +109,8 @@ class MonteCarlo(object):
           self.logger.info('Count {:4s} => {}'.format(topo.upper(),count))
 
 
-      if (viz is not None) and move.accept and (i%log_rate)==0:
+      # if (viz is not None) and move.accept and (i%log_rate)==0:
+      if (viz is not None) and (i%log_rate)==0:
         viz.clear()
         viz.draw_system(bonds=True)
         viz.show(blocking=False,resetCamera=False)

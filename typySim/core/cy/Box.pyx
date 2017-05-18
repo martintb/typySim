@@ -73,7 +73,7 @@ cdef class Box:
     return '< ' + xyz + '>'
 
   def fit(self,positions):
-    ''' Fit box to currently loaded positions in the system. '''
+    ''' Fit box to given positions'''
     maxPos = np.max(np.abs(positions),axis=0)
     self.lx=2*(maxPos[0]+1)
     self.ly=2*(maxPos[1]+1)
