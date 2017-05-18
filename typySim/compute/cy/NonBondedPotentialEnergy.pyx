@@ -49,6 +49,8 @@ cdef class NonBondedPotentialEnergy(Compute):
           temp.push_back(HardSphere)
         elif (self.system.NonBondedTable['potential',i,j] == 'LennardJones'):
           temp.push_back(LennardJones)
+        elif (self.system.NonBondedTable['potential',i,j] == 'Soft'):
+          temp.push_back(Soft)
         else:
           raise ValueError('Potential type not recognized!')
       self.PotentialMatrix.push_back(temp)
