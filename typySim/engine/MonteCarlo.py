@@ -138,6 +138,10 @@ class MonteCarlo(object):
               mol_dict['properties']['connected_to'][k]['molecule'] = None
           pkl[i]['molecules'].append(mol_dict)
 
+        self.logger.info('Logging partial trajectory to {}'.format(pkl_name))
+        with open(pkl_name,'wb') as f:
+          cPickle.dump(pkl,f,-1)
+
 
     accepted = self.rates['total_accepted']
     attempted = self.rates['total_attempted']
