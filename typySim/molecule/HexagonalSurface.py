@@ -34,6 +34,9 @@ class HexagonalSurface(Molecule):
     kwargs['alternate_z'] = alternate_z
     molData = shapes.hexagonal.surface(**kwargs)
     boxData = {}
+    boxData['nx'] = nx
+    boxData['ny'] = ny
+    boxData['nz'] = nz
     boxData['lx'] = lx_fit
     boxData['ly'] = ly_fit
     boxData['lz'] = max(molData['x']) - min(molData['y'])
