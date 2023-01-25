@@ -20,11 +20,13 @@ ctypedef np.float_t cDoubleType
 cdef class BondList:
   cdef public long[:,:] bonds
   cdef public long max_bonds_perbead
+  cdef public nbeads
   cdef public nbonds
   cdef bint init
   def __init__(self):
     self.max_bonds_perbead = 5
     self.init=False
+    self.nbeads = 0
     self.nbonds = 0
   def __getitem__(self,long index):
     return self.bonds[index]
@@ -37,9 +39,10 @@ cdef class BondList:
       self.init = True
     else:
       self.bonds    = np.append(self.bonds, np.full((num,self.max_bonds_perbead),-1,dtype=intType),axis=0)
-    self.nbonds = self.bonds.shape[0]
+    self.nbeads = self.bonds.shape[0]
   def shrink(self,indices):
     self.bonds  = np.delete(self.bonds,indices,axis=0)
+    self.nbeads = self.bonds.shape[0]
   def add(self,i,j,shiftVal):
     '''
     Parameters
@@ -83,6 +86,8 @@ cdef class BondList:
 
     self.insert_bond(bondi,bondj)
     self.insert_bond(bondj,bondi)
+
+    self.nbonds += 1
   def remove(self,long i,long j,long shiftVal):
     cdef long bondi,bondj
 
@@ -98,6 +103,8 @@ cdef class BondList:
 
     self.excise_bond(bondi,bondj)
     self.excise_bond(bondj,bondi)
+
+    self.nbonds -= 1
   cdef void insert_bond(self,long bondi,long bondj):
     cdef long new_j = bondj
     cdef long j,bond_num
@@ -178,7 +185,7 @@ cdef class BondList:
     cdef list pairlist = []
     cdef long beadi,beadj,bondj,
     if index is None:
-      for beadi in range(self.nbonds):
+      for beadi in range(self.nbeads):
         for bondj in range(self.max_bonds_perbead):
           beadj = self.bonds[beadi,bondj]
           if beadj!=-1 and beadj>beadi:
